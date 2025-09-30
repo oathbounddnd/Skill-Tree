@@ -1,0 +1,18 @@
+<!-- Add in <head> -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b0b12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<!-- Add before </body> -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js');
+    });
+  }
+  let deferredPrompt=null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt=e; document.getElementById('install-btn')?.classList.remove('hidden'); });
+  document.getElementById('install-btn')?.addEventListener('click', async ()=>{ deferredPrompt?.prompt(); await deferredPrompt?.userChoice; deferredPrompt=null; });
+</script>

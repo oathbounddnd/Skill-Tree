@@ -1,0 +1,3606 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>D&D Perk Constellations – v39</title>
+
+  <!-- PWA basics -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b0b12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&display=swap" rel="stylesheet">
+<script>
+(function(){
+  const K = 'unlock_blood_magic';
+  // Default to LOCKED if missing
+  try {
+    const v = localStorage.getItem(K);
+    if (v !== '0' && v !== '1') localStorage.setItem(K, '0');
+  } catch {}
+  // Block any other script from flipping it to '1' during initial load
+  const realSet = localStorage.setItem.bind(localStorage);
+  const start = Date.now();
+  localStorage.setItem = function(k, v){
+    if (k === K && v === '1' && Date.now() - start < 4000 && !window.__allowBMUnlock) {
+      console.warn('[BM] blocked unexpected auto-unlock during boot');
+      return;
+    }
+    return realSet(k, v);
+  };
+})();
+</script>
+
+
+  <!-- ===================== PART 1/6: Base Styles ===================== -->
+  <style>
+#bmState, #bmLockBtn, #bmUnlockBtn { display:none !important; }
+
+    :root{ --text:#eae9ff; --ui:#cfd8ff }
+    *{ box-sizing:border-box; }
+    html,body{
+      height:100%; margin:0;
+      background:#000 url('Background.png') center/cover no-repeat fixed;
+      color:var(--text);
+      font-family:'Cinzel Decorative', serif;
+    }
+    .wrap{ height:100%; display:flex; flex-direction:column; position:relative; overflow:hidden }
+
+    /* Parallax star layers */
+    .parallax{ position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden }
+    .layer{ position:absolute; inset:-20%; background-repeat:repeat; background-size:contain; opacity:.28; filter:blur(0.2px) }
+    .layer.layer1{
+      background-image: radial-gradient(rgba(255,255,255,.9) 1px, rgba(0,0,0,0) 1px);
+      animation: drift1 120s linear infinite;
+    }
+    .layer.layer2{
+      background-image: radial-gradient(rgba(255,255,255,.7) 1.2px, rgba(0,0,0,0) 1.2px);
+      opacity:.22;
+      animation: drift2 180s linear infinite;
+    }
+    @keyframes drift1 { from{ transform:translate3d(0,0,0) } to{ transform:translate3d(-8%, -6%, 0) } }
+    @keyframes drift2 { from{ transform:translate3d(0,0,0) } to{ transform:translate3d(10%, 8%, 0) } }
+
+    /* Twinkles & Meteors */
+    .twinkles, .meteors{ position:fixed; inset:0; pointer-events:none; z-index:0 }
+    .twinkle{
+      position:absolute; width:3px; height:3px; background:rgba(255,255,255,.95);
+      border-radius:50%; box-shadow:0 0 6px 2px rgba(255,255,255,.6);
+      animation:twinkle 2.2s infinite alternate;
+    }
+    @keyframes twinkle { from{ opacity:.25; transform:scale(0.85) } to{ opacity:1; transform:scale(1.25) } }
+    .meteor{
+      position:absolute; width:2px; height:2px; background:#fff;
+      box-shadow:0 0 12px 3px rgba(255,255,255,.95);
+      transform:rotate(-20deg); opacity:0;
+    }
+    @keyframes shoot{
+      0%{ opacity:0; transform:translate(0,0) rotate(-20deg); }
+      6%{ opacity:1; }
+      100%{ opacity:0; transform:translate(1100px, 320px) rotate(-20deg); }
+    }
+
+    /* Topbar / controls */
+    .topbar{
+      display:flex; gap:10px; padding:10px 14px; align-items:center;
+      background:linear-gradient(to bottom, rgba(0,0,0,.6), rgba(0,0,0,.2)); z-index:2
+    }
+    .tab{
+      border:1px solid rgba(255,255,255,.25); padding:8px 14px; border-radius:999px; cursor:pointer; user-select:none;
+      color:var(--ui); background:rgba(255,255,255,.06)
+    }
+    .tab.active{ color:#0b0b12; background:rgba(255,255,255,.9); font-weight:700; }
+    .controls{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 14px 2px; z-index:2 }
+    .treeTitle{ text-align:center; flex:1; font-weight:700; letter-spacing:.5px; font-size:clamp(18px,3.2vw,28px); text-shadow:0 0 16px rgba(0,0,0,.7) }
+    .resetBtn{ border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:var(--text); padding:8px 12px; border-radius:10px; cursor:pointer }
+    .resetBtn:hover{ background:rgba(255,255,255,.18) }
+
+    /* Stage & nav */
+    .stage{ position:relative; flex:1; overflow:hidden; z-index:25 }
+    .bottomNav{ position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:center; gap:12px; z-index:999999999; }
+    .navBtn{ border:none; background:rgba(255,255,255,.12); color:var(--text); padding:10px 14px; border-radius:12px; cursor:pointer }
+    .navBtn:hover{ background:rgba(255,255,255,.24) }
+    .swipeZone{ position:absolute; inset:auto 0 0 0; height:24%; z-index:24; pointer-events:none; }
+
+    /* Effects overlay & UI popups */
+    .fx{ position:absolute; inset:0; pointer-events:none; z-index:12; }
+    .fx video, .fx .starBadge{ position:absolute; transform:translate(-50%,-50%); mix-blend-mode:screen; }
+    .starBadge video{ width:150px; height:150px; }
+    .fx .explosion{ width:550px; height:550px; }
+    .fx .impact{ width:550px; height:550px; }
+
+    .confirm{
+      position:absolute; transform:translate(-50%,-120%);
+      background:rgba(0,0,0,.75); border:1px solid rgba(255,255,255,.25);
+      padding:8px 10px; border-radius:10px; pointer-events:auto; z-index:13; min-width:200px;
+    }
+    .confirm .row{ display:flex; justify-content:center; gap:8px; margin-top:6px; }
+    .confirm button{ background:rgba(255,255,255,.15); color:var(--text); border:none; border-radius:8px; padding:6px 10px; cursor:pointer }
+    .confirm button:hover{ background:rgba(255,255,255,.28) }
+
+    .modal{ position:absolute; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; z-index:17; }
+    .card{
+      background:rgba(18,18,28,.92); border:1px solid rgba(255,255,255,.18);
+      border-radius:14px; width:min(560px, 92vw); max-height:78vh; overflow:auto; padding:18px;
+    }
+    .card h3{ margin:0 0 8px 0; font-size:22px }
+    .card p{ margin:0; line-height:1.5; opacity:.92 }
+    .card .actions{ margin-top:14px; display:flex; justify-content:flex-end; gap:10px }
+    .card .btn{ background:rgba(255,255,255,.15); color:var(--text); border:none; border-radius:8px; padding:8px 12px; cursor:pointer }
+    .card .btn:hover{ background:rgba(255,255,255,.28) }
+
+    /* SVG */
+    svg{ width:100%; height:100%; display:block; z-index:10; position:relative; touch-action:none; }
+    .edgeGlow{ stroke:#fff; stroke-linecap:round; }
+    .edgeGlow.w1{ stroke-opacity:.07; stroke-width:12 }
+    .edgeGlow.w2{ stroke-opacity:.10; stroke-width:6 }
+    .edgeGlow.w3{ stroke-opacity:.18; stroke-width:3 }
+    .edgeCore{ stroke:#fff; stroke-width:0.9; stroke-linecap:round; }
+    .node{ cursor:pointer }
+    .node .halo{ fill: url(#radialHalo); opacity:.8; }
+    .node .dot{ fill:#fff }
+    .node.locked .halo{ opacity:.4 }
+    .node.locked .dot{ fill:#bbb }
+    .node.unlocked .halo{ opacity:1 }
+    .node.unlocked .dot{ fill:#fff }
+    .label{ fill: var(--text); font-size: clamp(5px, 1.8vw, 8px);; opacity:.9; pointer-events:none; user-select:none }
+    .prereq{ fill:#ffb0b0; font-size:12px }
+    .resetTip{ position:absolute; right:10px; bottom:45px; font-size:12px; opacity:.7; z-index:16 }
+
+    /* Install button */
+    #install-btn{
+      position: fixed; right: 12px; bottom: 14px; z-index: 10000;
+      border: 1px solid rgba(255,255,255,.3);
+      background: rgba(0,0,0,.55); color: #eae9ff;
+      padding: 10px 14px; border-radius: 12px; cursor: pointer;
+      backdrop-filter: blur(6px);
+    }
+    #install-btn.hidden{ display:none; }
+  </style>
+</head>
+<body>
+
+<script>
+// Play opening audio once when the app loads
+window.addEventListener('load', () => {
+  const audio = new Audio('./Opening.ogg'); // make sure Opening.ogg is in the same folder as index.html
+  audio.volume = 0.8; // adjust between 0.0 and 1.0
+  audio.play().catch(err => {
+    console.warn("Autoplay blocked by browser, waiting for first user click...");
+    // fallback: play on first click/tap
+    const resume = () => {
+      audio.play().catch(()=>{});
+      document.removeEventListener('click', resume);
+      document.removeEventListener('touchstart', resume);
+    };
+    document.addEventListener('click', resume);
+    document.addEventListener('touchstart', resume);
+  });
+});
+</script>
+
+<script>
+/** Opening audio + fullscreen FX (5× scale, start at 0.5s) **/
+(function(){
+  // 1) Opening audio (respects autoplay policies by trying muted first, then unmuting on first tap/click)
+  const openingAudio = new Audio('Opening.ogg');
+  openingAudio.preload = 'auto';
+  openingAudio.volume = 1.0;
+
+  // Some browsers block autoplay with sound; try to play muted, then unmute on first user gesture
+  openingAudio.muted = true;
+  openingAudio.play().then(()=>{
+    // Unmute on first interaction
+    const unmute = () => { openingAudio.muted = false; window.removeEventListener('pointerdown', unmute); };
+    window.addEventListener('pointerdown', unmute, { once:true });
+  }).catch(()=>{ /* ignore; will start on first user interaction anyway */ });
+
+  // 2) Fullscreen smoke FX
+  const sources = [
+    'Smoke_1_Mist_1_Storm_1_RADIUS_COLOR_2_1200x1200.webm',
+    'Smoke_2_Mist_2_Storm_2_LOOP_RADIUS_COLOR_1_1200x1200.webm',
+    'Smoke_1_Mist_1_Storm_1_RADIUS_COLOR_10_1200x1200.webm'
+  ];
+
+  const overlay = document.createElement('div');
+  Object.assign(overlay.style, {
+    position: 'fixed',
+    inset: '0',
+    zIndex: '2147483647',     // above everything
+    pointerEvents: 'none',     // won't block clicks
+    overflow: 'hidden'
+  });
+
+  // Helper to spawn one video, scaled ×5 and already 0.5s in
+  function spawnFX(src){
+    const v = document.createElement('video');
+    v.src = src;
+    v.autoplay = true;
+    v.muted = true;
+    v.playsInline = true;
+    v.loop = false; // change to true if you want a given clip to loop
+    Object.assign(v.style, {
+      position: 'fixed',
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%, -50%) scale(4)', // 5× size
+      width: '100vmin',   // base size; scale(4) makes it 500vmin — more than full screen
+      height: '100vmin',
+      objectFit: 'cover',
+      mixBlendMode: 'normal', // set to 'screen' if you prefer additive look
+      opacity: '1'
+    });
+
+    // Jump to 0.5s after metadata is ready (required to safely set currentTime)
+    v.addEventListener('loadedmetadata', ()=>{
+      try {
+        v.currentTime = Math.min(0.5, Math.max(0, (v.duration || 1) - 0.1));
+      } catch(_) {}
+      v.play().catch(()=>{ /* ignore */ });
+    });
+
+    overlay.appendChild(v);
+  }
+
+  // Add the overlay now so it’s ready
+  document.addEventListener('DOMContentLoaded', ()=>{
+    document.body.appendChild(overlay);
+    sources.forEach(spawnFX);
+
+    // Optional: fade out & remove after a few seconds
+    setTimeout(()=>{
+      overlay.style.transition = 'opacity 600ms ease';
+      overlay.style.opacity = '0';
+      setTimeout(()=> overlay.remove(), 650);
+    }, 3500); // keep on screen ~3.5s
+  });
+})();
+</script>
+
+
+  <div class="wrap">
+    <!-- parallax and animated sky -->
+    <div class="parallax">
+      <div class="layer layer1"></div>
+      <div class="layer layer2"></div>
+    </div>
+    <div class="twinkles" id="twinkles"></div>
+    <div class="meteors" id="meteors"></div>
+
+    <!-- tabs -->
+    <div class="topbar">
+      <div class="tab active" data-class="Expert">Expert</div>
+      <div class="tab" data-class="Mage">Mage</div>
+      <div class="tab" data-class="Warrior">Warrior</div>
+      <div class="tab" data-class="Priest">Priest</div>
+    </div>
+
+    <!-- controls -->
+    <div class="controls">
+      <div style="width:90px"></div>
+      <div class="treeTitle" id="treeTitle">Set a Title in /trees/*.js</div>
+      <button class="resetBtn" id="resetBtn">Reset</button>
+
+      <!-- Blood Magic lock status + manual toggle buttons -->
+      <span id="bmState" style="opacity:.85">Blood Magic: (checking…)</span>
+      <button class="resetBtn" id="bmLockBtn">Lock Blood Magic</button>
+      <button class="resetBtn" id="bmUnlockBtn">Unlock Blood Magic</button>
+    </div>
+
+    <!-- stage -->
+    <div class="stage" id="stage">
+      <div class="fx" id="fx"></div>
+      <div class="swipeZone" id="swipeZone"></div>
+
+      <div class="bottomNav">
+        <button class="navBtn" id="prevBtn">◀ Prev</button>
+        <button class="navBtn" id="nextBtn">Next ▶</button>
+      </div>
+
+      <svg id="canvas" viewBox="-500 -300 1000 600" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <radialGradient id="radialHalo" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#fff" stop-opacity="0.55"/>
+            <stop offset="45%" stop-color="#fff" stop-opacity="0.25"/>
+            <stop offset="85%" stop-color="#fff" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <g id="viewport" transform="translate(0,0) scale(1)">
+          <g id="edges"></g>
+          <g id="nodes"></g>
+          <g id="labels"></g>
+        </g>
+      </svg>
+
+      <div class="resetTip" id="resetTip" style="display:none;">Tap background to reset</div>
+    </div>
+
+    <!-- sfx -->
+    <audio id="perkSound" src="perk.ogg" preload="auto"></audio>
+  </div>
+
+  <!-- PWA install button -->
+  <button id="install-btn" class="hidden">Install App</button>
+
+  <!-- (Scripts come in Parts 2–6) -->
+
+
+
+
+  <!-- ===================== PART 2/6: Core Runtime ===================== -->
+  <script>
+
+
+
+  // ---------- data & loader ----------
+  const STORAGE_KEY = 'perkState_v39';
+  let TITLES = { Expert:['','',''], Mage:['','',''], Warrior:['','',''], Priest:['','',''] };
+  let TREES  = { Expert:[{nodes:[]},{nodes:[]},{nodes:[]}], Mage:[{nodes:[]},{nodes:[]},{nodes:[]}], Warrior:[{nodes:[]},{nodes:[]},{nodes:[]}], Priest:[{nodes:[]},{nodes:[]},{nodes:[]} ] };
+
+  function loadScript(src){
+    return new Promise((resolve)=>{
+      const s=document.createElement('script');
+      s.src=src; s.onload=()=>resolve(true); s.onerror=()=>resolve(false);
+      document.head.appendChild(s);
+    });
+  }
+  async function loadExternal(){
+    // optional external packs (safe to miss)
+    await loadScript('trees/expert.js');
+    await loadScript('trees/mage.js');
+    await loadScript('trees/warrior.js');
+    await loadScript('trees/priest.js');
+    // merge any exported globals if present
+    if(window.TITLES_EXPERT)  TITLES.Expert  = window.TITLES_EXPERT;
+    if(window.TITLES_MAGE)    TITLES.Mage    = window.TITLES_MAGE;
+    if(window.TITLES_WARRIOR) TITLES.Warrior = window.TITLES_WARRIOR;
+    if(window.TITLES_PRIEST)  TITLES.Priest  = window.TITLES_PRIEST;
+    if(window.TREES_EXPERT)   TREES.Expert   = window.TREES_EXPERT;
+    if(window.TREES_MAGE)     TREES.Mage     = window.TREES_MAGE;
+    if(window.TREES_WARRIOR)  TREES.Warrior  = window.TREES_WARRIOR;
+    if(window.TREES_PRIEST)   TREES.Priest   = window.TREES_PRIEST;
+  }
+
+  // ---------- DOM refs ----------
+  const svg       = document.getElementById('canvas');
+  const stage     = document.getElementById('stage');
+  const viewport  = document.getElementById('viewport');
+  const gEdges    = document.getElementById('edges');
+  const gNodes    = document.getElementById('nodes');
+  const gLabels   = document.getElementById('labels');
+  const fx        = document.getElementById('fx');
+  const swipeZone = document.getElementById('swipeZone');
+  const resetBtn  = document.getElementById('resetBtn');
+  const treeTitle = document.getElementById('treeTitle');
+  const twinkles  = document.getElementById('twinkles');
+  const meteors   = document.getElementById('meteors');
+  const perkSound = document.getElementById('perkSound');
+
+  // ---------- runtime state ----------
+  let current='Expert';
+  let subIndex={ Expert:0, Mage:0, Warrior:0, Priest:0 };
+  let scale=1, tx=0, ty=0;
+  let dragging=false, lastX=0, lastY=0;
+
+  // ---------- persistence ----------
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return { Expert:new Set(), Mage:new Set(), Warrior:new Set(), Priest:new Set() };
+      const obj = JSON.parse(raw);
+      return {
+        Expert: new Set(obj.Expert||[]),
+        Mage:   new Set(obj.Mage||[]),
+        Warrior:new Set(obj.Warrior||[]),
+        Priest: new Set(obj.Priest||[])
+      };
+    }catch(e){
+      return { Expert:new Set(), Mage:new Set(), Warrior:new Set(), Priest:new Set() };
+    }
+  }
+  function saveState(){
+    const out={
+      Expert:Array.from(unlocked.Expert||[]),
+      Mage:Array.from(unlocked.Mage||[]),
+      Warrior:Array.from(unlocked.Warrior||[]),
+      Priest:Array.from(unlocked.Priest||[])
+    };
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(out)); }catch(e){}
+  }
+  let unlocked = loadState();
+
+  // ---------- drawing ----------
+  function drawTree(){
+    const sub = subIndex[current] ?? 0;
+    const tree = TREES[current][sub] || {nodes:[]};
+    gEdges.innerHTML=''; gNodes.innerHTML=''; gLabels.innerHTML='';
+    clearConfirm(); clearModal();
+
+    const nodes = tree.nodes || [];
+    const map = Object.fromEntries(nodes.map(n=>[n.id,n]));
+
+    // edges
+    nodes.forEach(n=>{
+      if(!n.req && !n.reqs) return;
+      const sources = n.reqs || (n.req ? [n.req] : []);
+      sources.forEach(req=>{
+        const a=map[req], b=n; if(!a||!b) return;
+        ['w1','w2','w3'].forEach(w=> gEdges.appendChild(line(a.x,a.y,b.x,b.y,'edgeGlow '+w)) );
+        gEdges.appendChild(line(a.x,a.y,b.x,b.y,'edgeCore'));
+      });
+    });
+
+    // nodes + labels
+    nodes.forEach(n=>{
+      const g=svgGroup('node'); g.dataset.id=n.id; g.setAttribute('transform',`translate(${n.x},${n.y})`);
+      const halo=svgEl('circle',{r:18, class:'halo'}); const dot=svgEl('circle',{r:4, class:'dot'});
+      g.append(halo,dot); gNodes.appendChild(g);
+      const t=svgEl('text',{class:'label', x:n.x, y:n.y-15});
+      t.setAttribute('text-anchor','middle'); t.textContent=n.label||n.id||''; gLabels.appendChild(t);
+    });
+
+    // unlocked styles
+    [...gNodes.children].forEach(g=>{
+      const id=g.dataset.id; const set=unlocked[current]||new Set();
+      g.classList.toggle('unlocked', set.has(id));
+      g.classList.toggle('locked', !set.has(id));
+    });
+
+    treeTitle.textContent = (TITLES[current] && TITLES[current][sub]) || '';
+    renderBadges();
+  }
+
+  // ---------- svg utils ----------
+  function svgEl(tag, attrs){ const el=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const k in attrs){ el.setAttribute(k, attrs[k]); } return el; }
+  function svgGroup(cls){ const g=svgEl('g',{}); if(cls) g.setAttribute('class',cls); return g; }
+  function line(x1,y1,x2,y2,cls){ return svgEl('line',{x1,y1,x2,y2,class:cls}); }
+
+  function svgToClient(x,y){
+    const pt = svg.createSVGPoint(); pt.x=x; pt.y=y;
+    const m = viewport.getScreenCTM();
+    const res = pt.matrixTransform(m);
+    const rect = stage.getBoundingClientRect();
+    return { x: res.x - rect.left, y: res.y - rect.top };
+  }
+  function clientToSvg(clientX, clientY){
+    const rect = stage.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const pt = svg.createSVGPoint(); pt.x = x; pt.y = y;
+    const inv = viewport.getScreenCTM().inverse();
+    const res = pt.matrixTransform(inv);
+    return { x: res.x, y: res.y };
+  }
+
+  // ---------- interactions: nodes ----------
+  gNodes.addEventListener('click', (e)=>{
+    const nodeG = e.target.closest && e.target.closest('.node');
+    if(!nodeG) return;
+    const id=nodeG.dataset.id;
+    const tree = TREES[current][subIndex[current]??0] || {nodes:[]};
+    const n = (tree.nodes||[]).find(nn=>nn.id===id);
+    if(!n) return;
+    e.stopPropagation();
+    onNodeClick(n);
+  });
+
+  function onNodeClick(n){
+    const set=unlocked[current] || (unlocked[current]=new Set());
+    const targetScale = clamp(scale<1.2?1.6:scale*1.1, 1, 2.5);
+    animateTo(-n.x, -n.y, targetScale);
+    const reqs = n.reqs || (n.req ? [n.req] : []);
+    const canUnlock = (!set.has(n.id) && (reqs.length===0 || reqs.every(r=>set.has(r))));
+    showActions(n, canUnlock);
+  }
+
+  function showActions(n, canUnlock){
+    clearConfirm(); clearModal();
+    const pt = svgToClient(n.x, n.y);
+    const box = document.createElement('div'); box.className='confirm'; box.style.left=pt.x+'px'; box.style.top=pt.y+'px'; box.dataset.id=n.id;
+    const buttons = canUnlock ? '<button data-act="unlock">Unlock</button>' : '';
+    box.innerHTML = `<div style="text-align:center;font-weight:700">${n.label||n.id}</div>
+    <div class="row"><button data-act="view">View</button>${buttons}</div>`;
+    box.addEventListener('click', (e)=>{
+      const act = e.target.getAttribute('data-act'); if(!act) return; e.stopPropagation();
+      if(act==='view'){ openModal(n); }
+      if(act==='unlock'){ doUnlock(n); clearConfirm(); }
+    });
+    fx.appendChild(box);
+  }
+  function clearConfirm(){ fx.querySelectorAll('.confirm').forEach(el=>el.remove()); }
+
+  // ---------- modal ----------
+  function openModal(n){
+    clearModal();
+    const wrap=document.createElement('div'); wrap.className='modal'; wrap.addEventListener('click', (e)=>{ if(e.target===wrap) clearModal(); });
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML = `<h3>${n.label||n.id}</h3><p>${n.desc || 'No description yet.'}</p>
+      <div class="actions"><button class="btn" data-close>Close</button></div>`;
+    card.querySelector('[data-close]').addEventListener('click', ()=> clearModal());
+    wrap.appendChild(card); stage.appendChild(wrap);
+  }
+  function clearModal(){ const m=stage.querySelector('.modal'); if(m) m.remove(); }
+
+  // ---------- unlock logic & FX ----------
+  function doUnlock(n){
+    const set=unlocked[current] || (unlocked[current]=new Set());
+    if(set.has(n.id)) return;
+    const reqs = n.reqs || (n.req ? [n.req] : []);
+    if(reqs.length && !reqs.every(r=>set.has(r))){ showPrereq(n, reqs); return; }
+    set.add(n.id); saveState();
+    [...gNodes.children].forEach(g=>{
+      const id=g.dataset.id;
+      g.classList.toggle('unlocked', set.has(id)); g.classList.toggle('locked', !set.has(id));
+    });
+    playUnlockFX(n);
+    try{ perkSound.currentTime=0; perkSound.play(); }catch(e){}
+    renderBadges();
+  }
+  function showPrereq(n, reqs){
+    const t=svgEl('text',{class:'prereq', x:n.x, y:n.y+32}); t.setAttribute('text-anchor','middle');
+    t.textContent='Requires '+ reqs.join(', ');
+    gLabels.appendChild(t); setTimeout(()=>t.remove(), 1200);
+  }
+
+  // visual FX
+  function playUnlockFX(n){
+    const pt=svgToClient(n.x, n.y);
+    spawnVideo('Explosion_Particles_1_Flash_Shattert_COLOR_1_1200x1200.webm', pt.x, pt.y, 'explosion');
+    setTimeout(()=> spawnVideo('Impact_Hit_2_Flash_1_COLOR_3_1200x1200.webm', pt.x, pt.y, 'impact'), 120);
+  }
+  function spawnVideo(url,x,y,cls){
+    const v=document.createElement('video'); v.src=url; v.autoplay=true; v.muted=true; v.playsInline=true;
+    v.className=cls; v.style.left=x+'px'; v.style.top=y+'px';
+    v.onended=()=>v.remove(); setTimeout(()=>v.remove(), 2200);
+    fx.appendChild(v);
+  }
+  function addStarBadge(nodeId, x, y){
+    let badge = fx.querySelector(`.starBadge[data-id="${nodeId}"]`);
+    if(!badge){
+      badge=document.createElement('div'); badge.className='starBadge'; badge.dataset.id=nodeId;
+      const v=document.createElement('video'); v.src='star.webm'; v.autoplay=true; v.loop=true; v.muted=true; v.playsInline=true;
+      badge.appendChild(v); fx.appendChild(badge);
+    }
+    badge.style.left=x+'px'; badge.style.top=y+'px';
+  }
+  function renderBadges(){
+    fx.querySelectorAll('.starBadge').forEach(el=>el.remove());
+    const tree=TREES[current][subIndex[current]??0] || {nodes:[]}; const set=unlocked[current]||new Set();
+    (tree.nodes||[]).forEach(n=>{ if(set.has(n.id)){ const pt=svgToClient(n.x,n.y); addStarBadge(n.id, pt.x, pt.y); } });
+  }
+  function updateFxPositions(){
+    const tree=TREES[current][subIndex[current]??0] || {nodes:[]};
+    fx.querySelectorAll('.starBadge').forEach(el=>{
+      const id=el.dataset.id; const n=(tree.nodes||[]).find(nn=>nn.id===id);
+      if(!n){ el.style.display='none'; return; } else el.style.display='block';
+      const pt=svgToClient(n.x,n.y); el.style.left=pt.x+'px'; el.style.top=pt.y+'px';
+    });
+    const box=fx.querySelector('.confirm');
+    if(box){
+      const id=box.dataset.id; const n=(tree.nodes||[]).find(nn=>nn.id===id);
+      if(n){ const pt=svgToClient(n.x,n.y); box.style.left=pt.x+'px'; box.style.top=pt.y+'px'; }
+    }
+  }
+
+  // ---------- pan/zoom ----------
+  function animateTo(targetTx, targetTy, targetScale){
+    const startScale=scale, startTx=tx, startTy=ty;
+    const dur=450; const t0=performance.now();
+    const ease=t=> t<.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
+    document.getElementById('resetTip').style.display='block';
+    function step(now){
+      const p=Math.min(1,(now-t0)/dur); const k=ease(p);
+      scale = startScale + (targetScale-startScale)*k;
+      tx = startTx + (targetTx-startTx)*k;
+      ty = startTy + (targetTy-startTy)*k;
+      applyView(); updateFxPositions();
+      if(p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  function applyView(){ viewport.setAttribute('transform', `translate(${tx},${ty}) scale(${scale})`); }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+  // drag background
+  svg.addEventListener('pointerdown', e=>{
+    if(e.target.closest && e.target.closest('.node')) return;
+    dragging=true; lastX=e.clientX; lastY=e.clientY; svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener('pointermove', e=>{
+    if(!dragging) return;
+    const dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY;
+    tx += dx/scale; ty += dy/scale; applyView(); updateFxPositions();
+  });
+  window.addEventListener('pointerup', ()=> dragging=false);
+
+  // tap background to reset
+  svg.addEventListener('click', (e)=>{
+    if(e.target.closest && e.target.closest('.node')) return;
+    animateTo(0,0,1);
+    document.getElementById('resetTip').style.display='none';
+    clearConfirm(); clearModal();
+  });
+
+  // pinch zoom (touch)
+  let touching=false, touchIds=[], startDist=0, startScale=1, startWorldMid={x:0,y:0};
+  function getTouchById(touches, id){ for(let i=0;i<touches.length;i++){ if(touches[i].identifier===id) return touches[i]; } return null; }
+  svg.addEventListener('touchstart', (e)=>{
+    if(touchIds.length<2){
+      for(let i=0;i<e.changedTouches.length;i++){ touchIds.push(e.changedTouches[i].identifier); if(touchIds.length===2) break; }
+    }
+    if(touchIds.length===2){
+      const t0=getTouchById(e.touches, touchIds[0]); const t1=getTouchById(e.touches, touchIds[1]);
+      if(t0 && t1){
+        const dx=t1.clientX - t0.clientX, dy=t1.clientY - t0.clientY;
+        startDist=Math.hypot(dx,dy); startScale=scale;
+        const midX=(t0.clientX+t1.clientX)/2, midY=(t0.clientY+t1.clientY)/2;
+        startWorldMid = clientToSvg(midX, midY); touching=true;
+      }
+    }
+  },{passive:true});
+  svg.addEventListener('touchmove', (e)=>{
+    if(!touching) return;
+    const t0=getTouchById(e.touches, touchIds[0]); const t1=getTouchById(e.touches, touchIds[1]); if(!t0||!t1) return;
+    const dx=t1.clientX - t0.clientX, dy=t1.clientY - t0.clientY;
+    const dist=Math.hypot(dx,dy); const factor = dist / (startDist || 1);
+    const newScale = clamp(startScale * factor, 0.5, 2.5);
+    const midX=(t0.clientX+t1.clientX)/2, midY=(t0.clientY+t1.clientY)/2;
+    tx = (midX - stage.getBoundingClientRect().left)/newScale - startWorldMid.x;
+    ty = (midY - stage.getBoundingClientRect().top)/newScale - startWorldMid.y;
+    scale = newScale; applyView(); updateFxPositions();
+  },{passive:true});
+  svg.addEventListener('touchend', (e)=>{
+    for(let i=0;i<e.changedTouches.length;i++){ const id=e.changedTouches[i].identifier; touchIds = touchIds.filter(x=>x!==id); }
+    if(touchIds.length<2){ touching=false; }
+  },{passive:true});
+
+  // ---------- tabs ----------
+  [...document.querySelectorAll('.tab')].forEach(t=> t.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active');
+    current = t.dataset.class; if(subIndex[current]==null) subIndex[current]=0;
+    animateTo(0,0,1); drawTree();
+  }));
+
+  // ---------- reset (current constellation only) ----------
+  resetBtn.addEventListener('click', ()=>{
+    const name=current; const sub=subIndex[name]??0;
+    const nodes=(TREES[name][sub]||{nodes:[]}).nodes||[];
+    if(!confirm('Reset all perks in "'+ ((TITLES[name]||[])[sub]||'This Constellation') +'"?')) return;
+    const set=unlocked[name] || (unlocked[name]=new Set());
+    nodes.forEach(n=> set.delete(n.id));
+    saveState(); drawTree();
+  });
+
+  // ---------- pager + swipe ----------
+  document.getElementById('prevBtn').addEventListener('click', ()=> stepSub(-1));
+  document.getElementById('nextBtn').addEventListener('click', ()=> stepSub(1));
+  function stepSub(delta){
+    const list=(TREES[current]||[]);
+    const count = Array.isArray(list) ? list.length : 0;
+    if(count===0) return;
+    let idx=(subIndex[current]||0)+delta;
+    if(idx<0) idx=count-1; if(idx>=count) idx=0;
+    subIndex[current]=idx; animateTo(0,0,1); drawTree();
+  }
+
+  // swipe zone (lower band) so node taps aren’t blocked
+  let swipeStartX = 0, swipeActive = false;
+  const SWIPE_BAND = 0.24; // bottom 24% of the stage
+  function inSwipeBand(clientY){
+    const rect = stage.getBoundingClientRect();
+    return clientY >= (rect.bottom - rect.height * SWIPE_BAND);
+  }
+  // touch
+  stage.addEventListener('touchstart', (e)=>{
+    const t = e.touches[0];
+    if(!inSwipeBand(t.clientY)) return;
+    swipeActive = true; swipeStartX = t.clientX;
+  }, {passive:true});
+  stage.addEventListener('touchmove', (e)=>{
+    if(!swipeActive) return;
+    const x = e.touches[0].clientX;
+    const dx = x - swipeStartX;
+    if(Math.abs(dx) > 60){ stepSub(dx < 0 ? 1 : -1); swipeActive = false; }
+  }, {passive:true});
+  stage.addEventListener('touchend', ()=>{ swipeActive = false; }, {passive:true});
+  // mouse
+  stage.addEventListener('pointerdown', (e)=>{
+    if(!inSwipeBand(e.clientY)) return;
+    swipeActive = true; swipeStartX = e.clientX;
+  });
+  stage.addEventListener('pointermove', (e)=>{
+    if(!swipeActive) return;
+    const dx = e.clientX - swipeStartX;
+    if(Math.abs(dx) > 60){ stepSub(dx < 0 ? 1 : -1); swipeActive = false; }
+  });
+  stage.addEventListener('pointerup', ()=>{ swipeActive = false; });
+
+  // ---------- sky animations ----------
+  function seedTwinkles(count=60){
+    const w = window.innerWidth, h = window.innerHeight;
+    twinkles.innerHTML='';
+    for(let i=0;i<count;i++){
+      const s = document.createElement('div');
+      s.className='twinkle';
+      s.style.left = Math.random()*w+'px';
+      s.style.top  = Math.random()*h+'px';
+      s.style.opacity = (0.2 + Math.random()*0.8).toFixed(2);
+      s.style.animationDuration = (2 + Math.random()*3)+'s';
+      s.style.animationDelay = (-Math.random()*5)+'s';
+      twinkles.appendChild(s);
+    }
+  }
+  function spawnMeteor(){
+    const m=document.createElement('div'); m.className='meteor';
+    const startX = Math.random()*window.innerWidth*0.7 - 220;
+    const startY = Math.random()*window.innerHeight*0.35;
+    m.style.left=startX+'px'; m.style.top=startY+'px';
+    const dur = 900 + Math.random()*900;
+    m.style.animation = `shoot ${dur}ms linear forwards`;
+    meteors.appendChild(m);
+    setTimeout(()=> m.remove(), dur+120);
+  }
+  function meteorLoop(){
+    const delay = 5000 + Math.random()*7000; // 5–12s
+    setTimeout(()=>{ spawnMeteor(); meteorLoop(); }, delay);
+  }
+
+  // ---------- boot ----------
+  (async function init(){
+    seedTwinkles(60);
+    meteorLoop();
+    await loadExternal();
+    drawTree();
+  })();
+  </script>
+
+
+  <!-- ===================== PART 3/6: PWA (Install + SW) ===================== -->
+  <style>
+    #install-btn{
+      position:fixed; right:12px; bottom:14px; z-index:10000;
+      border:1px solid rgba(255,255,255,.3);
+      background:rgba(0,0,0,.55); color:#eae9ff;
+      padding:10px 14px; border-radius:12px; cursor:pointer;
+      backdrop-filter:blur(6px);
+    }
+    #install-btn.hidden{ display:none; }
+  </style>
+
+  <!-- floating install button (hidden until eligible) -->
+  <button id="install-btn" class="hidden">Install App</button>
+
+ <script>
+  // Only try SW when on http(s) and point to the right path
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', () => {
+      const swUrl = (location.pathname.endsWith('/') ? 'sw.js' : './sw.js');
+      navigator.serviceWorker.register(swUrl).catch(console.error);
+    });
+  }
+</script>
+
+<script>
+    // PWA install prompt handling
+    let deferredPrompt = null;
+    const installBtn = document.getElementById('install-btn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.classList.remove('hidden');
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      installBtn.classList.add('hidden');
+      deferredPrompt.prompt();
+      try {
+        await deferredPrompt.userChoice; // { outcome: 'accepted' | 'dismissed' }
+      } finally {
+        deferredPrompt = null;
+      }
+    });
+
+    window.addEventListener('appinstalled', () => {
+      installBtn.classList.add('hidden');
+      deferredPrompt = null;
+    });
+  </script>
+
+
+
+
+
+
+ 
+
+  <!-- ===================== PART 6/6: Constellations (append-only) ===================== -->
+  <script>
+    /* Ensure categories/slots exist (so you can freely append below) */
+    (function ensureSlots(){
+      window.TITLES = window.TITLES || {};
+      window.TREES  = window.TREES  || {};
+      ["Expert","Mage","Warrior","Priest"].forEach(cat=>{
+        if (!TITLES[cat] || TITLES[cat].length < 10){
+          const a = new Array(10); for(let i=0;i<10;i++) a[i] = (TITLES[cat] && TITLES[cat][i]) || "";
+          TITLES[cat] = a;
+        }
+        if (!TREES[cat] || TREES[cat].length < 10){
+          const t = new Array(10); for(let j=0;j<10;j++) t[j] = (TREES[cat] && TREES[cat][j]) || {nodes:[]};
+          TREES[cat] = t;
+        }
+      });
+    })();
+  </script>
+
+  <!-- ===== Expert 1: Crafting Tree ===== -->
+  <script>
+    TITLES.Expert[0] = "Crafting Tree";
+    TREES.Expert[0] = {
+      nodes: [
+        { id:'C0',  x:0,   y:160, label:'Apprentice Crafter',
+          desc:"Gain proficiency in two artisan tools of your choice and +1 to crafting rolls." },
+
+        // ENCHANTING (left)
+        { id:'CE1', x:-100, y:120, label:"Imbue Essence",
+          desc:"Prof. in Enchanter's Tools; learn 2 random Enchantment recipes; first enchanting check has advantage.", req:'C0' },
+        { id:'CE2', x:-140, y:80,  label:"Greater Imbuement",
+          desc:"Enchanting an item costs 1 fewer day. Once per enchantment, reroll a failed check.", req:'CE1' },
+        { id:'CE3', x:-160, y:40,  label:"Enhancing the Weave",
+          desc:"Reduce one weave adj. to +1 DC. Add one enchantment without costing an extra day.", req:'CE2' },
+        { id:'CE4', x:-140, y:0,   label:"Disenchanted",
+          desc:"Long rest to remove an enchantment and learn it as a recipe (not curses).", req:'CE3' },
+        { id:'CE5', x:-100, y:-40, label:"Expert Enchanter",
+          desc:"Max attunement slots +1.", req:'CE4' },
+        { id:'CE6', x:-60,  y:-80, label:"Arcanist",
+          desc:"Double prof. with Enchanter's Tools; disenchanting doesn’t destroy items and yields +1 Lyrium dust.", req:'CE5' },
+
+        // WEAPONS (center)
+        { id:'CW1', x:0, y:110, label:"Forgehand",
+          desc:"Reduce weapon crafting time by 1 day. Long-rest repairs restore weapon durability.", req:'C0' },
+        { id:'CW2', x:0, y:60,  label:"Like New",
+          desc:"During a long rest, add one temporary mod for one encounter.", req:'CW1' },
+        { id:'CW3', x:0, y:10,  label:"Weaponsmith",
+          desc:"Double prof. when crafting weapons. Gain proficiency with martial weapons.", req:'CW2' },
+        { id:'CW4', x:0, y:-40, label:"Lucky Break",
+          desc:"Once per weapon craft, reroll a failed check with advantage.", req:'CW3' },
+
+        // ARMOUR (right)
+        { id:'CA1', x:100, y:120, label:"Smith",
+          desc:"Reduce armour crafting time by 1 day. Long-rest repairs restore armour durability.", req:'C0' },
+        { id:'CA2', x:140, y:80,  label:"Armourer",
+          desc:"During a long rest, refine armour/shield to give +1 AC until next rest.", req:'CA1' },
+        { id:'CA3', x:160, y:40,  label:"Dings and Dents",
+          desc:"Once per armour craft, reroll a failed check with advantage.", req:'CA2' },
+        { id:'CA4', x:140, y:0,   label:"Armour Expert",
+          desc:"+1 to checks when making armour. Apply one property at half DC (min +1) once per craft.", req:'CA3' },
+        { id:'CA5', x:100, y:-40, label:"Heavy Duty",
+          desc:"Proficiency with light, medium, and heavy armour.", req:'CA4' },
+      ]
+    };
+    if (typeof drawTree==='function' && window.current==='Expert' && (window.subIndex?.Expert||0)===0) drawTree();
+  </script>
+
+  <!-- ===== Expert 2: Alchemy ===== -->
+  <script>
+    TITLES.Expert[1] = "Alchemy";
+    TREES.Expert[1] = {
+      nodes: [
+        { id:'A0', x:0, y:170, label:'Alchemist',
+          desc:"Gain prof. in Herbalism Kit, Poisoner’s Kit, and Alchemist Tools; +1 to Alchemy checks." },
+
+        // POISON
+        { id:'AP1', x:-120, y:120, label:'Toxicologist',
+          desc:"Advantage to identify poisons. 1/short rest craft Common poisons (1d6) up to INT mod.", req:'A0' },
+        { id:'AP2', x:-170, y:85,  label:'Venombinder',
+          desc:"On craft pick: Weakening Agent or Hallucinogen (see full rules).", req:'AP1' },
+        { id:'AP3', x:-190, y:45,  label:'Poisoner',
+          desc:"+1 to poison checks; resistance to poison damage.", req:'AP2' },
+        { id:'AP4', x:-160, y:5,   label:'Bottomless Cup',
+          desc:"Apply to one extra weapon per INT mod; 51–100 on d100 doubles damage/duration.", req:'AP3' },
+        { id:'AP5', x:-120, y:-35, label:'Alkahest',
+          desc:"Poisons ignore 2 AC of targets for PB rounds.", req:'AP4' },
+        { id:'AP6', x:-200, y:-35, label:'Toxic Savant',
+          desc:"Poisons bypass resistance; on failed save: Incapacitated until end of next turn OR halved speed + 1d8 poison next turn.", req:'AP4' },
+
+        // POTIONS
+        { id:'PP1', x:120, y:120, label:'Apprentice Alchemist',
+          desc:"Auto-master recipes equal to INT mod; +1 with Alchemy Supplies.", req:'A0' },
+        { id:'PP2', x:155, y:85,  label:'Refined Brewer',
+          desc:"1/short rest apply a modifier w/o DC increase; 1/short rest reroll failed craft with advantage.", req:'PP1' },
+        { id:'PP3', x:195, y:55,  label:'Refined Alchemist',
+          desc:"+1d4 potency to a chosen stat on potions you craft.", req:'PP2' },
+        { id:'PP4', x:135, y:15,  label:'Master Infuser',
+          desc:"1/short rest imbue stimulant on beneficial potion: restore Mana (2×INT mod + PB); up to INT mod potions.", req:'PP2' },
+        { id:'PP5', x:120, y:-30, label:'Blue Haze',
+          desc:"Stimulants grant +10 ft speed 1 min; craft stimulants per short rest = ⌊INT mod/2⌋ (min 1).", req:'PP4' },
+        { id:'PP6', x:100, y:-70, label:'Stimulants',
+          desc:"Under your stimulant: spend up to half hit dice in combat; if full allowance used, gain 1 exhaustion per die spent.", req:'PP5' },
+        { id:'PP7', x:80,  y:-110,label:'Potion Master',
+          desc:"50% chance of powerful side effect (table) on beneficial potion.", req:'PP6' },
+
+        // HERBALISM
+        { id:'HB1', x:0, y:120, label:'Greenthumb Forager',
+          desc:"In nature, forage twice per rest; +1 to foraging checks.", req:'A0' },
+        { id:'HB2', x:0, y:80,  label:'Greenwise Healer',
+          desc:"1/long rest craft salves: heal 1d4+2; make up to WIS mod.", req:'HB1' },
+        { id:'HB3', x:40, y:70,  label:'Good Soil',
+          desc:"Once per forage, name ≤ rare ingredient and auto-find; roll 1d6 qty.", req:'HB2' },
+        { id:'HB4', x:0, y:40,   label:'Remedy Crafter',
+          desc:"1/short rest when treating: +1d6 healing; remove one condition (poisoned/blinded/charmed/paralysed); adv. Medicine.", req:'HB2' },
+        { id:'HB5', x:0, y:0,    label:'Cultivator',
+          desc:"1/long rest grow 1 ingredient in kit to +2d6 by morning (not Legendary; doubles → roll again).", req:'HB4' },
+        { id:'HB6', x:30, y:-40, label:"Nature's Spirit",
+          desc:"Learn Speak with Plants (1/short rest) and Old Entish; cultivate 2 plants in kit.", req:'HB5' },
+        { id:'HB7', x:-30,y:-40, label:"Nature's Surgeon",
+          desc:"1/long rest brew Greater Herbal Remedy: heal 2d8+WIS; reduce exhaustion by half (min 1). +1 to herbalism & foraging.", req:'HB5' },
+      ]
+    };
+    if (typeof drawTree==='function' && window.current==='Expert' && (window.subIndex?.Expert||0)===1) drawTree();
+  </script>
+
+  <!-- ===== Priest 1: Restoration ===== -->
+  <script>
+    TITLES.Priest[0] = "Restoration";
+    TREES.Priest[0] = {
+      nodes: [
+        { id:'PR0', x:0,  y:180, label:'Restoration Mastery',
+          desc:"Healing spells cure +2 HP. 1/short rest a healing spell affects 2 creatures; they share the same result." },
+
+        // Healing (left wall)
+        { id:'PH1', x:-20,  y:140, label:'Edgewalker',
+          desc:"If target <30% HP, heal max; a creature can’t benefit again until after a short rest.", req:'PR0' },
+        { id:'PH2', x:-70,  y:120, label:'Hallowed Skills',
+          desc:"Restoration spells/effects are 20% more effective.", req:'PH1' },
+        { id:'PH3', x:-110, y:90,  label:'Respite',
+          desc:"1/short rest Healing Word: heals half; restores other half as spell points. A creature benefits once/long rest.", req:'PH2' },
+        { id:'PH4', x:-140, y:50,  label:'Overflowing Cup',
+          desc:"Excess healing → temp HP OR store and burst to heal within 5 ft (pool clears on short rest).", req:'PH3' },
+        { id:'PH5', x:-150, y:0,   label:'Blessed Be',
+          desc:"When you heal a creature, it also gains Bless and Blade Ward for 1 round.", req:'PH4' },
+        { id:'PH6', x:-130, y:-60, label:'Sacred Life',
+          desc:"Creatures under Bless/shields are healed +30% (rounded up).", req:'PH5' },
+        { id:'PH7', x:-190, y:-60, label:'Wheel of Life',
+          desc:"1/long rest in combat: 30-ft aura pulses 1d4 rounds at round start — heal 2d4 (or deal 2d4 to death/undead).", req:'PH5' },
+
+        // Smite/ward (right wall)
+        { id:'PD1', x:20,   y:140, label:'Descending Light',
+          desc:"Once/day when entering combat, regain spent spell points = ⌊level/2⌋.", req:'PR0' },
+        { id:'PD2', x:70,   y:120, label:'Vigilant',
+          desc:"The first ward you cast in combat costs no spell points.", req:'PD1' },
+        { id:'PD3', x:110,  y:90,  label:'Radiant Light',
+          desc:"Learn Word of Radiance or Sacred Flame. 1/long rest: 30% chance to banish on cast.", req:'PD2' },
+        { id:'PD4', x:140,  y:50,  label:"Evil's Fear",
+          desc:"1/encounter: Prot. from Evil & Good as bonus; also Turn Undead at target’s location (10 ft).", req:'PD3' },
+        { id:'PD5', x:150,  y:0,   label:"Warrior's Flame",
+          desc:"1/short rest: random target in 60 ft — allies +3 SP, heal 1d4, Bless 1 turn; enemies 1d6 radiant, Bane 1 turn.", req:'PD4' },
+        { id:'PD6', x:130,  y:-60, label:'Battle Cleric',
+          desc:"+1 AC to blessed allies / −1 AC to cursed enemies from Warrior’s Flame.", req:'PD5' },
+        { id:'PD7', x:190,  y:-60, label:'Eternal Flame',
+          desc:"Warrior’s Flame produces two flames lasting twice as long.", req:'PD5' },
+      ]
+    };
+    if (typeof drawTree==='function' && window.current==='Priest' && (window.subIndex?.Priest||0)===0) drawTree();
+  </script>
+
+  <!-- ===== Mage 1: Divination ===== -->
+  <script>
+    TITLES.Mage[0] = "Divination";
+    TREES.Mage[0] = {
+      nodes: [
+        { id:'MD0', x:0, y:180, label:'Seeker of Signs',
+          desc:"Learn one divination cantrip. Cast Augury as a ritual without expending a slot." },
+
+        // Astrology (left)
+        { id:'MA1', x:-120, y:120, label:'Celestial Attunement',
+          desc:"+1 initiative for you & allies after a daily star chart; add prof. again to Arcana (astrology).", req:'MD0' },
+        { id:'MA2', x:-120, y:70,  label:"Starseer's Insight",
+          desc:"Once/day name a moment in next 24h; at that time gain adv. on an ability, attack, save and grant one ally same.", req:'MA1' },
+        { id:'MA3', x:-120, y:20,  label:'Astral Alignment',
+          desc:"1/min under night sky: act first; divination targets ×2; allies in 30 ft +1 saves & may reroll one failed save.", req:'MA2' },
+        { id:'MA4', x:-120, y:-30, label:'Omen of the Zenith',
+          desc:"Replace a d20 roll with 6–15; then roll a Sign table effect.", req:'MA3' },
+        { id:'MA5', x:-120, y:-80, label:'Constellation Weaving',
+          desc:"Under night sky: gain any Sign on initiative; +1 DC or +2 bonus on divination casts.", req:'MA4' },
+
+        // Fate (middle to 4-way)
+        { id:'MF1', x:0, y:120, label:'Bones of Fate',
+          desc:"1/short rest mark a creature: next key roll ±d6 (your choice). Gain Insight proficiency if lacking.", req:'MD0' },
+        { id:'MF2', x:0, y:70,  label:'Weaver of Threads',
+          desc:"1/long rest, divert a nat 1/20 to 10; give adv./disadv. to another creature next turn.", req:'MF1' },
+        { id:'MF3', x:0, y:20,  label:'Threads Unraveling',
+          desc:"Daily premonition d20 replace once; 1/long rest rewind a failed/attack save for a reroll (must accept).", req:'MF2' },
+        { id:'MF4', x:0, y:-30, label:'Foreseen Consequence',
+          desc:"1/short rest see 1 round ahead: team-wide adv. on attacks OR saves; also know next actions in 60 ft.", req:'MF3' },
+        { id:'MF5a', x:-60, y:-90, label:'Fate of the Tarot',
+          desc:"After LR, assign 3 card boons; 1/LR flip The Tower/Star/Moon (effect list).", req:'MF4' },
+        { id:'MF5b', x:-10, y:-90, label:'Fate of the Bones',
+          desc:"Daily yes/no truth; 1/LR Foretold Death (block revive unless you permit; on death, regain big power).", req:'MF4' },
+        { id:'MF5c', x:40,  y:-90, label:'Fate of the Runes',
+          desc:"Daily Runestone (Warding/Power). 1/LR Carve Fate (Delay/Doom/Deliverance). Keep ally at 1 HP once/LR.", req:'MF4' },
+        { id:'MF5d', x:90,  y:-90, label:'Fate of the Mirror',
+          desc:"Scrying 1/day w/out slot; Vision Cascade → Suggestion/Fear or astral project 60 ft to target.", req:'MF4' },
+
+        // Mediumship (right)
+        { id:'MC1', x:120, y:120, label:'Path of the Veil',
+          desc:"Speak with Dead 1/LR; Spirit Sense 60 ft through walls (presence only).", req:'MD0' },
+        { id:'MC2', x:120, y:70,  label:"Medium's Reach",
+          desc:"10-min trance: talk to spirits; truesight 60 ft; Wis saves to maintain; ask Qs scaling DC.", req:'MC1' },
+        { id:'MC3', x:120, y:20,  label:'Open the Veil',
+          desc:"Ritual 10-ft spirit gate; astral travel with escalating Wis DC per minute.", req:'MC2' },
+        { id:'MC4', x:120, y:-30, label:'Eyes of the Spirit',
+          desc:"Truesight 15 ft. On touch sense emotion. 1/LR Detect Thoughts & Clairvoyance free.", req:'MC3' },
+        { id:'MC5', x:120, y:-80, label:'Guardian Spirit',
+          desc:"Constant Detect Evil & Good; 1/min channel guardian aura; summon in the Fade.", req:'MC4' },
+      ]
+    };
+    if (typeof drawTree==='function' && window.current==='Mage' && (window.subIndex?.Mage||0)===0) drawTree();
+  </script>
+
+  <!-- ===== Priest 2: Rituals & Faith ===== -->
+
+<!-- ===== Priest Secret 7: Lycanthropy - Moon Phases (+ Lock Gate) ===== -->
+<script>
+(function(){
+  TITLES.Priest[7] = "Lycanthropy";
+  TREES.Priest[7] = {
+    nodes: [
+      // CENTER (FULL MOON)
+      { id:"LY0", x:0, y:0, label:"The Curse",
+        desc:"You have been afflicted with lycanthropy. Once per long rest, you can transform into a werewolf (hybrid form) for 10 minutes. While transformed: +30 temp HP, +2 AC, natural attacks (bite 2d6, claws 1d8 each), darkvision 60ft." },
+
+      // NEW MOON PATH (top - control/mastery)
+      { id:"LYN1", x:0, y:-70, label:"Control the Beast",
+        desc:"You can transform as a bonus action and maintain your full mental faculties while transformed. Transform once per short rest.", req:"LY0" },
+      
+      { id:"LYN2", x:0, y:-110, label:"Scent Tracking",
+        desc:"While transformed, gain advantage on Perception and Survival checks. You can track by scent and detect creatures within 60ft by smell.", req:"LYN1" },
+      
+      { id:"LYN3", x:0, y:-150, label:"Pack Tactics",
+        desc:"While transformed, you and allies within 30ft have advantage on attacks against targets if another ally is within 5ft of that target.", req:"LYN2" },
+      
+      { id:"LYN4", x:0, y:-190, label:"Alpha",
+        desc:"Your howl inspires allies. Bonus action, all allies within 40ft gain +2 to attack rolls and saves for 1 minute. Once per transformation.", req:"LYN3" },
+      
+      { id:"LYN5", x:0, y:-230, label:"Master of the Hunt",
+        desc:"Transform twice per short rest. While transformed, critical hits on 19-20 and your speed increases by 20ft.", req:"LYN4" },
+
+      // WAXING PATH (right - offensive power)
+      { id:"LYW1", x:100, y:-50, label:"Savage Bite",
+        desc:"Your bite deals an additional 1d6 damage. On hit, target must make CON save or take 1d6 bleed damage at start of their turns (action to stop).", req:"LY0" },
+      
+      { id:"LYW2", x:140, y:-80, label:"Rending Claws",
+        desc:"When you hit with both claw attacks on same target, they take an additional 2d6 slashing damage.", req:"LYW1" },
+      
+      { id:"LYW3", x:160, y:-120, label:"Pounce",
+        desc:"If you move 20ft+ straight toward target then hit with claw, target makes STR save or is knocked prone. You can make bite attack as bonus vs prone targets.", req:"LYW2" },
+      
+      { id:"LYW4", x:140, y:-160, label:"Feral Rage",
+        desc:"Bonus action, enter rage for 1 minute. Gain +4 damage on melee attacks, resistance to B/P/S damage. Once per transformation.", req:"LYW3" },
+      
+      { id:"LYW5", x:100, y:-200, label:"Blood Frenzy",
+        desc:"Against bloodied enemies (below half HP), you have advantage on attacks and deal +1d8 damage.", req:"LYW4" },
+
+      // FULL MOON PATH (bottom - enhanced transformation)
+      { id:"LYF1", x:0, y:70, label:"Enhanced Form",
+        desc:"Your werewolf form temp HP increases to +45 and you gain regeneration (5 HP at start of your turn if above 0 HP).", req:"LY0" },
+      
+      { id:"LYF2", x:0, y:110, label:"Thick Hide",
+        desc:"While transformed, gain resistance to bludgeoning, piercing, and slashing from nonmagical attacks.", req:"LYF1" },
+      
+      { id:"LYF3", x:0, y:150, label:"Moonlight Healing",
+        desc:"Under moonlight while transformed, your regeneration increases to 10 HP per turn.", req:"LYF2" },
+      
+      { id:"LYF4", x:0, y:190, label:"Dire Wolf Form",
+        desc:"Your werewolf form grows larger. Size becomes Large, temp HP +60, bite 3d6, claws 2d6 each.", req:"LYF3" },
+
+      // WANING PATH (left - utility/mobility)
+      { id:"LYV1", x:-100, y:-50, label:"Night Vision",
+        desc:"Gain darkvision 120ft even when not transformed. While transformed, you can see in magical darkness.", req:"LY0" },
+      
+      { id:"LYV2", x:-140, y:-80, label:"Wolf's Swiftness",
+        desc:"Your base movement increases by 10ft always. While transformed, +20ft and opportunity attacks against you have disadvantage.", req:"LYV1" },
+      
+      { id:"LYV3", x:-160, y:-120, label:"Howl of the Pack",
+        desc:"Action, howl to summon 1d4 wolves that obey you for 10 minutes. They act on your initiative. Once per long rest.", req:"LYV2" },
+      
+      { id:"LYV4", x:-140, y:-160, label:"Shadow Stalker",
+        desc:"While transformed in dim light or darkness, you can take Hide action as bonus and have advantage on Stealth checks.", req:"LYV3" },
+      
+      { id:"LYV5", x:-100, y:-200, label:"Moon Step",
+        desc:"Once per short rest while transformed, you can teleport up to 60ft to an unoccupied space you can see that is in moonlight or darkness.", req:"LYV4" },
+
+      // CONVERGENCE
+      { id:"LY_MASTER", x:0, y:-270, label:"Lord of Lycanthropes",
+        desc:"You have mastered the curse. Transform at will (bonus action, no limit). Maintain transformation indefinitely. You can speak normally while transformed. Once per long rest: force all lycanthropes within 1 mile to make WIS save or be unable to transform for 24 hours.", reqs:["LYN5","LYW5","LYV5"] }
+    ]
+  };
+
+  const KEY = 'unlock_lycanthropy';
+  const PASS = 'luna';
+
+  function onLY(){ try{ return current === 'Priest' && ((subIndex?.Priest ?? 0) === 7); }catch(_){ return false; } }
+
+  function buildGate(){
+    let ov = document.getElementById('lycanthropylock');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'lycanthropylock';
+    Object.assign(ov.style, {
+      position:'absolute', top:'15%', left:'15%', width:'70%', height:'70%',
+      zIndex:'25', display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(0,0,0,.35)'
+    });
+
+    const frost = document.createElement('video');
+    frost.src = './Shield_Magic_Frost_1_Loop_COLOR_4_1200x1200.webm';
+    frost.autoplay = true; frost.loop = true; frost.muted = true; frost.playsInline = true;
+    Object.assign(frost.style, { position:'absolute', width:'90vmin', height:'90vmin', objectFit:'cover', opacity:'0.9' });
+
+    const label = document.createElement('div');
+    label.textContent = 'LOCKED';
+    Object.assign(label.style, {
+      position:'absolute', transform:'rotate(-15deg)',
+      fontFamily:"'Cinzel Decorative', serif", fontWeight:'700',
+      fontSize:'min(8vmin, 72px)', letterSpacing:'0.2em',
+      color:'#c7e6ff', textShadow:'0 0 18px #9fd3ff, 0 0 36px rgba(159,211,255,.55)'
+    });
+
+    ov.append(frost, label);
+    ov.addEventListener('click', ()=>{
+      const input = (prompt('Speak under the moon:')||'').trim().toLowerCase();
+      if (input !== PASS) return;
+
+      const burst = ['./Impact_Hit_2_Flash_1_COLOR_3_1200x1200.webm','./Explosion_Particles_1_Flash_Shattert_COLOR_1_1200x1200.webm'];
+      let pending = burst.length;
+      burst.forEach((src, i)=>{
+        const v = document.createElement('video');
+        v.src = src; v.muted = true; v.playsInline = true;
+        Object.assign(v.style, { position:'absolute', width:i? '98vmin':'88vmin', height:i? '98vmin':'88vmin', objectFit:'contain', display:'none' });
+        ov.appendChild(v);
+        setTimeout(()=>{
+          v.style.display='block';
+          const done = ()=>{ v.remove(); if(--pending<=0) fade(); };
+          v.addEventListener('ended', done, {once:true});
+          v.play().catch(()=> setTimeout(done, 2000));
+          setTimeout(done, 3500);
+        }, i? 200:0);
+      });
+
+      function fade(){
+        ov.style.transition='opacity 800ms ease';
+        ov.style.opacity='0';
+        setTimeout(()=>{ ov.remove(); try{ localStorage.setItem(KEY,'1'); }catch(_){} }, 820);
+      }
+    });
+
+    document.body.appendChild(ov);
+    return ov;
+  }
+
+  function maybeGate(){
+    let unlocked = false;
+    try{ unlocked = localStorage.getItem(KEY) === '1'; }catch(_){}
+    const gate = document.getElementById('lycanthropylock');
+    if (onLY()){
+      if (!unlocked && !gate) buildGate();
+      if (unlocked && gate) gate.remove();
+    } else {
+      gate?.remove();
+    }
+  }
+
+  if (!window.__lycanthropyGateHooked && typeof window.drawTree === 'function'){
+    const _draw = window.drawTree;
+    window.drawTree = function(){ const r=_draw.apply(this, arguments); try{ maybeGate(); }catch(_){} return r; };
+    window.__lycanthropyGateHooked = true;
+  }
+  window.addEventListener('load', maybeGate);
+  setTimeout(maybeGate, 120);
+
+  window.lycanthropy = {
+    lock(){ try{ localStorage.setItem(KEY,'0'); }catch(_){} if (onLY()) buildGate(); },
+    unlock(){ try{ localStorage.setItem(KEY,'1'); }catch(_){} document.getElementById('lycanthropylock')?.remove(); }
+  };
+})();
+</script>
+
+<!-- ===== Priest Secret 6: Vampirism - Bat Wings (+ Lock Gate) ===== -->
+<script>
+(function(){
+  TITLES.Priest[6] = "Vampirism";
+  TREES.Priest[6] = {
+    nodes: [
+      // CENTER (HEART)
+      { id:"VM0", x:0, y:0, label:"The Embrace",
+        desc:"You have been turned into a vampire. Gain darkvision 60ft, spider climb, vulnerability to radiant damage, sunlight sensitivity (disadvantage in sunlight). Undead creature type." },
+
+      // LEFT WING - BLOOD PATH
+      { id:"VML1", x:-80, y:-40, label:"Blood Drain",
+        desc:"Unarmed bite attack (1d6 piercing + 2d6 necrotic). On hit against bloodied creature, regain HP equal to necrotic damage dealt. Once per short rest.", req:"VM0" },
+      
+      { id:"VML2", x:-120, y:-70, label:"Blood Frenzy",
+        desc:"When you taste blood (deal damage with bite), gain +2 to attacks and damage for 1 minute. Stacks with multiple bites (max +6).", req:"VML1" },
+      
+      { id:"VML3", x:-150, y:-105, label:"Vampiric Touch",
+        desc:"Learn Vampiric Touch spell. Cast once per short rest without slot. When cast this way, heal for full damage dealt (not half).", req:"VML2" },
+      
+      { id:"VML4", x:-165, y:-145, label:"Blood Pool",
+        desc:"Store excess healing in blood pool (max = your level × 5). Bonus action to spend stored HP to heal yourself.", req:"VML3" },
+      
+      { id:"VML5", x:-150, y:-185, label:"Exsanguinate",
+        desc:"When you reduce a creature to 0 HP with bite or Vampiric Touch, drain them completely. Gain temp HP equal to their max HP. Once per long rest.", req:"VML4" },
+
+      // RIGHT WING - CHARM/DOMINATION PATH
+      { id:"VMR1", x:80, y:-40, label:"Hypnotic Gaze",
+        desc:"Action, one creature within 30ft makes WIS save or is charmed for 1 minute (repeat save if damaged). Once per short rest.", req:"VM0" },
+      
+      { id:"VMR2", x:120, y:-70, label:"Enthrall",
+        desc:"Your charm effects now work on creatures immune to charm (they save with advantage instead). Charmed creatures obey verbal commands.", req:"VMR1" },
+      
+      { id:"VMR3", x:150, y:-105, label:"Dominate",
+        desc:"Once per long rest, you can cast Dominate Person without expending a spell slot. Concentration lasts full duration even if you take damage.", req:"VMR2" },
+      
+      { id:"VMR4", x:165, y:-145, label:"Children of the Night",
+        desc:"Action, summon 2d4 rats, bats, or wolves that obey you for 1 hour. Once per long rest.", req:"VMR3" },
+      
+      { id:"VMR5", x:150, y:-185, label:"Mass Domination",
+        desc:"Your Dominate can target up to 3 creatures simultaneously. They all share the same commands.", req:"VMR4" },
+
+      // BOTTOM LEFT - MIST FORM
+      { id:"VMB1", x:-90, y:50, label:"Misty Escape",
+        desc:"Reaction when you take damage, turn into mist until start of your next turn (resistance to all damage, can't take actions). Once per short rest.", req:"VM0" },
+      
+      { id:"VMB2", x:-120, y:90, label:"Mist Form",
+        desc:"Action, transform into mist for up to 1 hour. Fly 20ft, move through tiny spaces, resistance to non magical damage. Once per long rest.", req:"VMB1" },
+      
+      { id:"VMB3", x:-90, y:130, label:"Mist Walk",
+        desc:"While in mist form, your fly speed increases to 40ft and you can move through creatures.", req:"VMB2" },
+
+      // BOTTOM RIGHT - BAT FORM
+      { id:"VMF1", x:90, y:50, label:"Bat Form",
+        desc:"Action, transform into a bat (Tiny) for up to 1 hour. Fly 60ft, echolocation 60ft. Once per long rest.", req:"VM0" },
+      
+      { id:"VMF2", x:120, y:90, label:"Swarm of Bats",
+        desc:"Instead of single bat, become swarm of bats (Medium). Fly 40ft, move through small spaces, resistance to physical damage. Bite attack 2d4.", req:"VMF1" },
+      
+      { id:"VMF3", x:90, y:130, label:"Night Wings",
+        desc:"You can manifest bat wings without full transformation. Gain fly 40ft for 10 minutes. Usable at will.", req:"VMF2" },
+
+      // BOTTOM CENTER - REGENERATION
+      { id:"VMC1", x:0, y:80, label:"Undead Regeneration",
+        desc:"Regain 5 HP at start of your turn if you have at least 1 HP. Doesn't work in sunlight or if you took radiant damage last turn.", req:"VM0" },
+      
+      { id:"VMC2", x:0, y:120, label:"Vampiric Resilience",
+        desc:"Regeneration increases to 10 HP per turn. Resistance to necrotic and cold damage.", req:"VMC1" },
+      
+      { id:"VMC3", x:0, y:160, label:"Deathless",
+        desc:"When you drop to 0 HP (except radiant/sunlight), transform to mist and return to your coffin. Revive in 8 hours with 1 HP. Once per week.", req:"VMC2" },
+
+      // CONVERGENCE
+      { id:"VM_MASTER", x:0, y:-225, label:"Vampire Lord",
+        desc:"You have become an ancient vampire. No longer have sunlight sensitivity, regenerate in sunlight (5 HP/turn), immunity to necrotic damage, legendary resistance (3/day), and can use all transformation abilities at will without limit.", reqs:["VML5","VMR5","VMC3"] }
+    ]
+  };
+
+  const KEY = 'unlock_vampirism';
+  const PASS = 'sanguis';
+
+  function onVM(){ try{ return current === 'Priest' && ((subIndex?.Priest ?? 0) === 6); }catch(_){ return false; } }
+
+  function buildGate(){
+    let ov = document.getElementById('vampirismlock');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'vampirismlock';
+    Object.assign(ov.style, {
+      position:'absolute', top:'15%', left:'15%', width:'70%', height:'70%',
+      zIndex:'25', display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(0,0,0,.35)'
+    });
+
+    const frost = document.createElement('video');
+    frost.src = './Shield_Magic_Frost_1_Loop_COLOR_4_1200x1200.webm';
+    frost.autoplay = true; frost.loop = true; frost.muted = true; frost.playsInline = true;
+    Object.assign(frost.style, { position:'absolute', width:'90vmin', height:'90vmin', objectFit:'cover', opacity:'0.9' });
+
+    const label = document.createElement('div');
+    label.textContent = 'LOCKED';
+    Object.assign(label.style, {
+      position:'absolute', transform:'rotate(-15deg)',
+      fontFamily:"'Cinzel Decorative', serif", fontWeight:'700',
+      fontSize:'min(8vmin, 72px)', letterSpacing:'0.2em',
+      color:'#c7e6ff', textShadow:'0 0 18px #9fd3ff, 0 0 36px rgba(159,211,255,.55)'
+    });
+
+    ov.append(frost, label);
+    ov.addEventListener('click', ()=>{
+      const input = (prompt('Speak the blood oath:')||'').trim().toLowerCase();
+      if (input !== PASS) return;
+
+      const burst = ['./Impact_Hit_2_Flash_1_COLOR_3_1200x1200.webm','./Explosion_Particles_1_Flash_Shattert_COLOR_1_1200x1200.webm'];
+      let pending = burst.length;
+      burst.forEach((src, i)=>{
+        const v = document.createElement('video');
+        v.src = src; v.muted = true; v.playsInline = true;
+        Object.assign(v.style, { position:'absolute', width:i? '98vmin':'88vmin', height:i? '98vmin':'88vmin', objectFit:'contain', display:'none' });
+        ov.appendChild(v);
+        setTimeout(()=>{
+          v.style.display='block';
+          const done = ()=>{ v.remove(); if(--pending<=0) fade(); };
+          v.addEventListener('ended', done, {once:true});
+          v.play().catch(()=> setTimeout(done, 2000));
+          setTimeout(done, 3500);
+        }, i? 200:0);
+      });
+
+      function fade(){
+        ov.style.transition='opacity 800ms ease';
+        ov.style.opacity='0';
+        setTimeout(()=>{ ov.remove(); try{ localStorage.setItem(KEY,'1'); }catch(_){} }, 820);
+      }
+    });
+
+    document.body.appendChild(ov);
+    return ov;
+  }
+
+  function maybeGate(){
+    let unlocked = false;
+    try{ unlocked = localStorage.getItem(KEY) === '1'; }catch(_){}
+    const gate = document.getElementById('vampirismlock');
+    if (onVM()){
+      if (!unlocked && !gate) buildGate();
+      if (unlocked && gate) gate.remove();
+    } else {
+      gate?.remove();
+    }
+  }
+
+  if (!window.__vampirismGateHooked && typeof window.drawTree === 'function'){
+    const _draw = window.drawTree;
+    window.drawTree = function(){ const r=_draw.apply(this, arguments); try{ maybeGate(); }catch(_){} return r; };
+    window.__vampirismGateHooked = true;
+  }
+  window.addEventListener('load', maybeGate);
+  setTimeout(maybeGate, 120);
+
+  window.vampirism = {
+    lock(){ try{ localStorage.setItem(KEY,'0'); }catch(_){} if (onVM()) buildGate(); },
+    unlock(){ try{ localStorage.setItem(KEY,'1'); }catch(_){} document.getElementById('vampirismlock')?.remove(); }
+  };
+})();
+</script>
+
+<!-- ===== Priest Secret 8: Plague Doctor (+ Lock Gate) ===== -->
+<script>
+(function(){
+  TITLES.Priest[8] = "Plague Doctor";
+  TREES.Priest[8] = {
+    nodes: [
+      // CENTER
+      { id:"PD0", x:0, y:0, label:"Plague Bearer",
+        desc:"You have embraced the darker aspects of healing. You can inflict diseases and rot. Gain immunity to disease and poison." },
+
+      // DISEASE PATH (left)
+      { id:"PDL1", x:-90, y:-50, label:"Contagion",
+        desc:"Once per long rest, touch attack to inflict disease. Target makes CON save or contracts a wasting disease (disadvantage on attacks, checks, saves using STR, DEX, CON).", req:"PD0" },
+      
+      { id:"PDL2", x:-120, y:-90, label:"Festering Wound",
+        desc:"When you deal damage, you can curse the wound. Target cannot regain hit points until they receive magical healing. Once per short rest.", req:"PDL1" },
+      
+      { id:"PDL3", x:-140, y:-130, label:"Epidemic",
+        desc:"Your diseases spread. When a diseased creature is within 10ft of another creature for 1 minute, the disease spreads (CON save). Once per long rest.", req:"PDL2" },
+      
+      { id:"PDL4", x:-120, y:-170, label:"Wasting Touch",
+        desc:"Your Contagion now reduces maximum HP by 1d6 per day until cured. Usable twice per long rest.", req:"PDL3" },
+      
+      { id:"PDL5", x:-80, y:-200, label:"Plague Master",
+        desc:"You can inflict any disease you know. Epidemic spreads automatically (no save) to creatures with less than half HP.", req:"PDL4" },
+
+      // ROT PATH (right)
+      { id:"PDR1", x:90, y:-50, label:"Decay",
+        desc:"Touch attack, 3d8 necrotic damage and target's AC reduced by 2 until end of their next turn (armor/natural armor corrodes). Once per short rest.", req:"PD0" },
+      
+      { id:"PDR2", x:120, y:-90, label:"Putrefy",
+        desc:"When a creature dies within 30ft of you, its corpse rapidly decays creating 10ft radius difficult terrain and noxious fumes (CON save or poisoned while in area).", req:"PDR1" },
+      
+      { id:"PDR3", x:140, y:-130, label:"Withering Aura",
+        desc:"Bonus action, activate aura for 1 minute. Enemies starting turn within 15ft take 1d8 necrotic and have disadvantage on death saves. Once per long rest.", req:"PDR2" },
+      
+      { id:"PDR4", x:120, y:-170, label:"Rotting Curse",
+        desc:"Target makes CON save or begins to rot over 3 rounds. Round 1: 1d6 necrotic. Round 2: 2d6 necrotic. Round 3: 3d6 necrotic and stunned. Once per long rest.", req:"PDR3" },
+      
+      { id:"PDR5", x:80, y:-200, label:"Death's Embrace",
+        desc:"When you drop to 0 HP, release burst of decay. All within 20ft take 4d10 necrotic (CON save half) and corpses in area animate as zombies under your control. Once per long rest.", req:"PDR4" },
+
+      // SWARM PATH (bottom)
+      { id:"PDS1", x:0, y:60, label:"Swarm of Flies",
+        desc:"Summon swarm of flies (10ft cube) within 60ft for 1 minute. Creatures in area: disadvantage on attacks, 1d4 poison damage per turn. Once per short rest.", req:"PD0" },
+      
+      { id:"PDS2", x:-40, y:100, label:"Locust Plague",
+        desc:"Summon locust swarm (20ft radius) for 1 minute. Obscures vision, 2d6 piercing per turn to creatures inside. Once per long rest.", req:"PDS1" },
+      
+      { id:"PDS3", x:40, y:100, label:"Carrion Birds",
+        desc:"Summon 1d4+1 vultures/crows that obey you for 10 minutes. They can attack (1d6+2 piercing) and scout. Once per long rest.", req:"PDS1" },
+      
+      { id:"PDS4", x:0, y:140, label:"Pestilent Swarm",
+        desc:"Your swarms carry disease. Creatures damaged by your swarms must make CON save or become diseased (as Contagion).", req:"PDS2" },
+
+      // CONVERGENCE
+      { id:"PD_MASTER", x:0, y:-240, label:"Horseman of Pestilence",
+        desc:"You embody plague itself. Once per long rest, transform for 1 minute: immunity to all damage, your diseases ignore immunity, all disease/rot abilities recharge, and you can use any plague ability as a bonus action.", reqs:["PDL5","PDR5"] }
+    ]
+  };
+
+  const KEY = 'unlock_plague_doctor';
+  const PASS = 'miasma';
+
+  function onPD(){ try{ return current === 'Priest' && ((subIndex?.Priest ?? 0) === 8); }catch(_){ return false; } }
+
+  function buildGate(){
+    let ov = document.getElementById('plaguedoctorlock');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'plaguedoctorlock';
+    Object.assign(ov.style, {
+      position:'absolute', top:'15%', left:'15%', width:'70%', height:'70%',
+      zIndex:'25', display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(0,0,0,.35)'
+    });
+
+    const frost = document.createElement('video');
+    frost.src = './Shield_Magic_Frost_1_Loop_COLOR_4_1200x1200.webm';
+    frost.autoplay = true; frost.loop = true; frost.muted = true; frost.playsInline = true;
+    Object.assign(frost.style, { position:'absolute', width:'90vmin', height:'90vmin', objectFit:'cover', opacity:'0.9' });
+
+    const label = document.createElement('div');
+    label.textContent = 'LOCKED';
+    Object.assign(label.style, {
+      position:'absolute', transform:'rotate(-15deg)',
+      fontFamily:"'Cinzel Decorative', serif", fontWeight:'700',
+      fontSize:'min(8vmin, 72px)', letterSpacing:'0.2em',
+      color:'#c7e6ff', textShadow:'0 0 18px #9fd3ff, 0 0 36px rgba(159,211,255,.55)'
+    });
+
+    ov.append(frost, label);
+    ov.addEventListener('click', ()=>{
+      const input = (prompt('Enter the word of sickness:')||'').trim().toLowerCase();
+      if (input !== PASS) return;
+
+      const burst = ['./Impact_Hit_2_Flash_1_COLOR_3_1200x1200.webm','./Explosion_Particles_1_Flash_Shattert_COLOR_1_1200x1200.webm'];
+      let pending = burst.length;
+      burst.forEach((src, i)=>{
+        const v = document.createElement('video');
+        v.src = src; v.muted = true; v.playsInline = true;
+        Object.assign(v.style, { position:'absolute', width:i? '98vmin':'88vmin', height:i? '98vmin':'88vmin', objectFit:'contain', display:'none' });
+        ov.appendChild(v);
+        setTimeout(()=>{
+          v.style.display='block';
+          const done = ()=>{ v.remove(); if(--pending<=0) fade(); };
+          v.addEventListener('ended', done, {once:true});
+          v.play().catch(()=> setTimeout(done, 2000));
+          setTimeout(done, 3500);
+        }, i? 200:0);
+      });
+
+      function fade(){
+        ov.style.transition='opacity 800ms ease';
+        ov.style.opacity='0';
+        setTimeout(()=>{ ov.remove(); try{ localStorage.setItem(KEY,'1'); }catch(_){} }, 820);
+      }
+    });
+
+    document.body.appendChild(ov);
+    return ov;
+  }
+
+  function maybeGate(){
+    let unlocked = false;
+    try{ unlocked = localStorage.getItem(KEY) === '1'; }catch(_){}
+    const gate = document.getElementById('plaguedoctorlock');
+    if (onPD()){
+      if (!unlocked && !gate) buildGate();
+      if (unlocked && gate) gate.remove();
+    } else {
+      gate?.remove();
+    }
+  }
+
+  if (!window.__plagueDoctorGateHooked && typeof window.drawTree === 'function'){
+    const _draw = window.drawTree;
+    window.drawTree = function(){ const r=_draw.apply(this, arguments); try{ maybeGate(); }catch(_){} return r; };
+    window.__plagueDoctorGateHooked = true;
+  }
+  window.addEventListener('load', maybeGate);
+  setTimeout(maybeGate, 120);
+
+  window.plagueDoctor = {
+    lock(){ try{ localStorage.setItem(KEY,'0'); }catch(_){} if (onPD()) buildGate(); },
+    unlock(){ try{ localStorage.setItem(KEY,'1'); }catch(_){} document.getElementById('plaguedoctorlock')?.remove(); }
+  };
+})();
+</script>
+
+
+<!-- ===== Priest Secret 9: Templar - Downward Sword (+ Lock Gate) ===== -->
+<script>
+(function(){
+  // install the secret tree into Priest slot #9 (index 8)
+  TITLES.Priest[9] = "Templar";
+  TREES.Priest[9] = {
+    nodes: [
+      // SWORD POMMEL (top - entry point)
+      { id:"TP0", x:0, y:200, label:"Templar Initiate",
+        desc:"You gain proficiency with heavy armor and martial weapons if you lack them. When wearing heavy armor, you gain +1 to Constitution saving throws and resistance to being frightened." },
+
+      // SWORD GRIP (handle area)
+      { id:"TP1L", x:-40, y:160, label:"Righteous Strike",
+        desc:"Once per turn when you hit a fiend, undead, or creature that has dealt damage to an ally this round, add 1d6 radiant damage. This increases to 1d8 at 8th level.", req:"TP0" },
+      
+      { id:"TP1R", x:40, y:160, label:"Holy Smite", 
+        desc:"When you deal radiant damage with a weapon attack, you can expend a spell slot to deal additional radiant damage equal to 1d8 + spell level. Once per short rest.", req:"TP0" },
+
+      // CROSSGUARD (left and right extensions)
+      { id:"TP2L", x:-80, y:120, label:"Cleanse",
+        desc:"Once per long rest, you can end one disease, poison, curse, or charm effect on yourself or an ally within 30 feet as an action. At 12th level, this affects all allies within 30 feet.", req:"TP1L" },
+      
+      { id:"TP2R", x:80, y:120, label:"Mental Fortress", 
+        desc:"You have advantage on saving throws against being charmed or frightened. Additionally, when you succeed on such a save, you regain 1 spell point.", req:"TP1R" },
+
+      // UPPER BLADE (widening)
+      { id:"TP3L", x:-60, y:80, label:"Turn Undead",
+        desc:"You can use Turn Undead as if you were a Cleric of half your level (minimum 1). If you already have Turn Undead, increase the effective level by 2.", req:"TP2L" },
+      
+      { id:"TP3R", x:60, y:80, label:"Spell Purge",
+        desc:"Once per long rest, when you take damage from a spell, you can use your reaction to end one spell effect of 3rd level or lower on the caster. At 15th level, this affects spells of 5th level or lower.", req:"TP2R" },
+
+      // MID BLADE (getting narrower)
+      { id:"TP4L", x:-40, y:40, label:"Guardian's Resolve",
+        desc:"When an ally within 10 feet of you takes damage, you can use your reaction to reduce that damage by 1d6 + your Constitution modifier. You take half the reduced damage. Uses per long rest equal to Constitution modifier.", req:"TP3L" },
+      
+      { id:"TP4R", x:40, y:40, label:"Dispel Magic",
+        desc:"You learn Dispel Magic and can cast it once per long rest without expending a spell slot. When you cast it this way, you have advantage on the ability check.", req:"TP3R" },
+
+      // LOWER BLADE (continuing to narrow)
+      { id:"TP5L", x:-30, y:0, label:"Aura of Warding",
+        desc:"You and allies within 10 feet have resistance to damage from spells. At 18th level, this extends to 30 feet.", req:"TP4L" },
+      
+      { id:"TP5R", x:30, y:0, label:"Spell Shield",
+        desc:"When you or an ally within 30 feet is targeted by a spell that requires an attack roll, you can use your reaction to impose disadvantage on the attack. Once per short rest.", req:"TP4R" },
+
+      // BLADE APPROACHING TIP
+      { id:"TP6L", x:-20, y:-40, label:"Sacred Weapon",
+        desc:"Once per long rest, you can bless a weapon for 10 minutes. It becomes magical, deals an additional 1d4 radiant damage, and sheds bright light in a 10-foot radius.", req:"TP5L" },
+      
+      { id:"TP6R", x:20, y:-40, label:"Mana Burn",
+        desc:"Once per long rest, when you hit a spellcaster with a weapon attack, they must make a Constitution saving throw or lose one spell slot of 3rd level or lower. You regain hit points equal to 1d8 × slot level lost.", req:"TP5R" },
+
+      // BLADE NEAR TIP (convergence)
+      { id:"TP7L", x:-10, y:-80, label:"Blessed Recovery",
+        desc:"Once per long rest, when you drop to 0 hit points, you instead drop to 1 hit point and regain spell points equal to your Constitution modifier. All fiends and undead within 30 feet take 2d8 radiant damage.", req:"TP6L" },
+      
+      { id:"TP7R", x:10, y:-80, label:"Anti-Magic Field",
+        desc:"Once per long rest, you can create a 10-foot radius anti-magic field centered on yourself for 1 minute. You can move the field with you, and it suppresses all magical effects within.", req:"TP6R" },
+
+      // SWORD TIP (ultimate convergence)
+      { id:"TP8", x:0, y:-120, label:"Divine Champion",
+        desc:"You become a true champion of the divine. Once per long rest, for 1 minute you gain: immunity to charm and fear, advantage on all saving throws, your weapon attacks deal maximum damage, and enemies that start their turn within 30 feet take 1d8 radiant damage.", reqs:["TP7L","TP7R"] }
+    ]
+  };
+
+  // --- Lock overlay gate (password) ---
+  const KEY = 'unlock_templar';
+  const PASS = 'divine'; // lowercase ok
+
+  function onTP(){ try{ return current === 'Priest' && ((subIndex?.Priest ?? 0) === 9); }catch(_){ return false; } }
+
+  function buildGate(){
+    let ov = document.getElementById('templarlock');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'templarlock';
+    Object.assign(ov.style, {
+      position:'absolute',
+      top:'15%', left:'15%', width:'70%', height:'70%',
+      zIndex:'25',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(0,0,0,.35)'
+    });
+
+const frost = document.createElement('video');
+    frost.src = './Shield_Magic_Frost_1_Loop_COLOR_4_1200x1200.webm';
+    frost.autoplay = true; frost.loop = true; frost.muted = true; frost.playsInline = true;
+    Object.assign(frost.style, { position:'absolute', width:'90vmin', height:'90vmin', objectFit:'cover', opacity:'0.9' });
+
+    const label = document.createElement('div');
+    label.textContent = 'LOCKED';
+    Object.assign(label.style, {
+      position:'absolute', transform:'rotate(-15deg)',
+      fontFamily:"'Cinzel Decorative', serif", fontWeight:'700',
+      fontSize:'min(8vmin, 72px)', letterSpacing:'0.2em',
+      color:'#c7e6ff', textShadow:'0 0 18px #9fd3ff, 0 0 36px rgba(159,211,255,.55)'
+    });
+
+    ov.append(frost, label);
+    ov.addEventListener('click', ()=>{
+      const input = (prompt('Enter the sacred word:')||'').trim().toLowerCase();
+      if (input !== PASS) return;
+
+      // burst effects then fade
+      const burst = ['./Explosion_Particles_1_Flash_Shattert_COLOR_1_1200x1200.webm','./Impact_Hit_2_Flash_1_COLOR_3_1200x1200.webm'];
+      let pending = burst.length;
+      burst.forEach((src, i)=>{
+        const v = document.createElement('video');
+        v.src = src; v.muted = true; v.playsInline = true;
+        Object.assign(v.style, { position:'absolute', width:i? '98vmin':'88vmin', height:i? '98vmin':'88vmin', objectFit:'contain', display:'none' });
+        ov.appendChild(v);
+        setTimeout(()=>{
+          v.style.display='block';
+          const done = ()=>{ v.remove(); if(--pending<=0) fade(); };
+          v.addEventListener('ended', done, {once:true});
+          v.play().catch(()=> setTimeout(done, 2000));
+          setTimeout(done, 3500);
+        }, i? 200:0);
+      });
+
+      function fade(){
+        ov.style.transition='opacity 800ms ease';
+        ov.style.opacity='0';
+        setTimeout(()=>{ ov.remove(); try{ localStorage.setItem(KEY,'1'); }catch(_){} }, 820);
+      }
+    });
+
+    document.body.appendChild(ov);
+    return ov;
+  }
+
+  function maybeGate(){
+    let unlocked = false;
+    try{ unlocked = localStorage.getItem(KEY) === '1'; }catch(_){}
+    const gate = document.getElementById('templarlock');
+    if (onTP()){
+      if (!unlocked && !gate) buildGate();
+      if (unlocked && gate) gate.remove();
+    } else {
+      gate?.remove();
+    }
+  }
+
+  // hook drawTree once
+  if (!window.__templarGateHooked && typeof window.drawTree === 'function'){
+    const _draw = window.drawTree;
+    window.drawTree = function(){ const r=_draw.apply(this, arguments); try{ maybeGate(); }catch(_){} return r; };
+    window.__templarGateHooked = true;
+  }
+  window.addEventListener('load', maybeGate);
+  setTimeout(maybeGate, 120);
+
+  // console helpers
+  window.templar = {
+    lock(){ try{ localStorage.setItem(KEY,'0'); }catch(_){} if (onTP()) buildGate(); },
+    unlock(){ try{ localStorage.setItem(KEY,'1'); }catch(_){} document.getElementById('templarlock')?.remove(); }
+  };
+})();
+</script>
+
+  <script>
+    TITLES.Priest[1] = "Rituals & Faith";
+    TREES.Priest[1] = {
+      nodes: [
+        { id:'PF0', x:0, y:20,  label:'Sacred Rites',
+          desc:"Gain a Ritual Focus. During a long rest you may perform Ceremony." },
+
+        // Left arc (Consecration)
+        { id:'PF1', x:-130, y:75,  label:'Sanctify the Ground',
+          desc:"10-min ritual: consecrate 10-ft radius for 1h. Allies +1 vs fear/charm; undead/fiends take 1d4 radiant on entry.", req:'PF0' },
+        { id:'PF2', x:-150, y:0,   label:'Blessed Vessel',
+          desc:"After consecration, imbue a creature 8h: resist necrotic; +1 radiant on hit. One Vessel at a time.", req:'PF1' },
+        { id:'PF3', x:-130, y:-75, label:'Circle of Benediction',
+          desc:"1/LR bless an object with +1 save vs magical attacks & resist necrotic; 5-ft aura.", req:'PF2' },
+        { id:'PF4', x:-75,  y:-130,label:'Divine Anchor',
+          desc:"Consecration becomes warded ground (Magic Circle-like); advantage on death saves; seal Fade breaks (Religion).", req:'PF3' },
+
+        // Right arc (Exorcism/Banishment)
+        { id:'PG1', x:130,  y:-75, label:'Exorcist',
+          desc:"Know Demonic & Angelic; adv. on checks for exorcisms/fiends/celestials; resist possession/charm.", req:'PF0' },
+        { id:'PG2', x:150,  y:0,   label:'Rite of Banishment',
+          desc:"Turn Undead 1/LR as bonus action; after banish ritual, impose disadv. on its next Wis save.", req:'PG1' },
+        { id:'PG3', x:130,  y:75,  label:'Purging Rite',
+          desc:"1/LR, 10-min exorcism to end a curse/charm/possession (≤ uncommon). Failed Wis save suppresses 1h.", req:'PG2' },
+        { id:'PG4', x:75,   y:130, label:'Evil Intervention',
+          desc:"After exorcism, mark vs repossession 24h; brand seal 1/LR prevents low-level possession.", req:'PG3' },
+        { id:'PG5', x:0,    y:150, label:'Summon the Flame',
+          desc:"1/LR, 1-min invocation: call divine fire on consecrated area — 6d6 radiant (DEX half).", req:'PG4' },
+        { id:'PG6', x:-75,  y:130, label:'Holy Orders',
+          desc:"Add prof. again to banishment/exorcism checks; shrine boons in holy places.", req:'PG5' },
+      ]
+    };
+    if (typeof drawTree==='function' && window.current==='Priest' && (window.subIndex?.Priest||0)===1) drawTree();
+  </script>
+
+  <!-- ===== Warrior 1: Defense & Armour (Shield) ===== -->
+  <script>
+    TITLES.Warrior[0] = "Defense & Armour";
+    TREES.Warrior[0] = {
+      nodes: [
+        { id:'W0', x:0, y:150, label:'Armoured Resilience',
+          desc:"Full set worn: +1 AC and resistance to B/P/S for 1 minute (1/LR)." },
+        { id:'W1', x:0, y:100, label:'Wall and Ward',
+          desc:"Reaction: intercept attack on ally within 5 ft; shove as bonus after a hit.", req:'W0' },
+        { id:'W2', x:0, y:50,  label:'Shield Adept',
+          desc:"Advantage to resist shove/prone/grapple while wielding a shield.", req:'W1' },
+        { id:'W3', x:0, y:0,   label:'Shield Wall',
+          desc:"1/SR, 3 turns: resist nonmagical B/P/S; speed halved; no Dash.", req:'W2' },
+        { id:'W4', x:0, y:-60, label:'Overpower',
+          desc:"1/SR, shield strike (CON save): fail 2d8 & stunned; success half/no stun.", req:'W3' },
+
+        // Light branch
+        { id:'WL1', x:-110,y:90,  label:'Evasive Maneuvers',
+          desc:"1/LR, reaction to halve damage from a visible attacker.", req:'W0' },
+        { id:'WL2', x:-140,y:40,  label:'Battlefield Conditioning',
+          desc:"Light armour: on successful DEX save, move 5 ft w/o OAs.", req:'WL1' },
+        { id:'WL3', x:-120,y:0,   label:'Ghoststep',
+          desc:"1/SR, light armour & no shield: Disengage bonus OR Dash/Dodge as reaction vs ranged/spell attack.", req:'WL2' },
+        { id:'WL4', x:-80, y:-40, label:'Blurred Form',
+          desc:"1/SR when hit, force reroll (you may impose disadv. on the reroll).", req:'WL3' },
+
+        // Heavy branch
+        { id:'WR1', x:110, y:90,  label:'Immovable Object',
+          desc:"1/LR reduce an incoming attack roll by your PB (pre-result).", req:'W0' },
+        { id:'WR2', x:140, y:40,  label:'Steel Strength',
+          desc:"Heavy armour: when a melee misses you, reaction STR save or the attacker is prone.", req:'WR1' },
+        { id:'WR3', x:120, y:0,   label:'Braced Stance',
+          desc:"If you don’t move, action to brace: reduce incoming damage by 1d10 until next turn.", req:'WR2' },
+{ id:'WR4', x:80,  y:-40, label:"Juggernaut's Advance",
+          desc:"Heavy armour: 15-ft straight move â†' adv. on next melee; target STR contest or prone.", req:'WR3' },
+        
+        // Additional Defense Abilities
+        { id:'WD1', x:0, y:-100, label:'Shield Cover',
+          desc:"Activate this per round as a bonus action. While active and wielding a shield gain an additional +2 AC to ranged attacks.", req:'W4' },
+        
+        { id:'WD2', x:-40, y:-140, label:'Shield Block',
+          desc:"Activate this as a bonus action per round and you can no longer be flanked.", req:'WD1' },
+        
+        { id:'WD3', x:40, y:-140, label:'Carapace',
+          desc:"Activate as a bonus action per round, a shield is equipped reduces all damage taken by 1d6+your Constitution modifier.", req:'WD1' }
+      ]
+    };
+    if (typeof drawTree==='function' && window.current==='Warrior' && (window.subIndex?.Warrior||0)===0) drawTree();
+  </script>
+
+  <!-- ===== Warrior 2: Weapon Mastery (Sword) ===== -->
+  <script>
+    TITLES.Warrior[1] = "Weapon Mastery";
+    TREES.Warrior[1] = {
+      nodes: [
+        { id:'WM0', x:0, y:190, label:'Martial Focus',
+          desc:"1/SR, when using a proficient melee weapon, you may reroll an attack." },
+        { id:'WM1', x:0, y:100, label:'Mastery of Weapons',
+          desc:"Gain proficiency in martial weapons if lacking. 1/encounter +1 to an attack roll with them.", req:'WM0' },
+        { id:'WM_LHILT', x:-120, y:60, label:"Dancer's Precision",
+          desc:"1/SR with light/finesse: roll attack at disadv. to impose disadv. on target’s next attack.", req:'WM1' },
+        { id:'WM_RHILT', x:120,  y:60, label:'Crushing Blows',
+          desc:"1/encounter with heavy: ignore B/P/S resistances; on max die, next attack vs same target has advantage.", req:'WM1' },
+        { id:'WM2', x:0, y:20,  label:'Momentum Strike',
+          desc:"1/encounter on hit move 5 ft (no OAs) and make a second attack vs different target (half damage).", req:'WM1' },
+        { id:'WM3', x:0, y:-90, label:'Weapon Control',
+          desc:"1/SR Riposte on miss; on hit choose Disarm/Trip/Menace (saves as listed).", req:'WM2' },
+        { id:'WM4', x:0, y:-170, label:"Master's Technique",
+          desc:"1/SR after a hit: pick Executionerâ€™s Rhythm / Blade Dance / Unstoppable Blow (effects as listed).", req:'WM3' },
+        
+        // Additional Weapon Mastery Abilities  
+        { id:'WM5', x:-60, y:-220, label:'Precise Striking',
+          desc:"Choose to take disadvantage on your attack rolls to gain +1 to your attack.", req:'WM4' },
+        
+{ id:'WM4', x:0, y:-170, label:"Master's Technique",
+          desc:"1/SR after a hit: pick Executionerâ€™s Rhythm / Blade Dance / Unstoppable Blow (effects as listed).", req:'WM3' },
+        
+        // Additional Weapon Mastery Abilities  
+        { id:'WM5', x:-60, y:-220, label:'Precise Striking',
+          desc:"Choose to take disadvantage on your attack rolls to gain +1 to your attack.", req:'WM4' },
+        
+        { id:'WM6', x:60, y:-220, label:'Taunt',
+          desc:"Make an Intimidation check against a creature's Wisdom, within 30ft of you. On a fail they move 10ft towards you.", req:'WM4' }
+      ]
+    };
+    if (typeof drawTree==='function' && window.current==='Warrior' && (window.subIndex?.Warrior||0)===1) drawTree();
+  </script>
+
+  <!-- ===== Warrior 3: Two-Handed Mastery (Battleaxe) ===== -->
+  <script>
+    TITLES.Warrior[2] = "Two-Handed Mastery";
+    TREES.Warrior[2] = {
+      nodes: [
+        { id:'AX0', x:0, y:185, label:'Powerful Swings',
+          desc:"Bonus action stance 1 min: +2 damage with 2H melee; −1 AC. End any time." },
+        { id:'AX1', x:0, y:115, label:'Strength',
+          desc:"While stance is active, no −1 AC and +1 to hit.", req:'AX0' },
+        { id:'AX2', x:0, y:70,  label:'Weapon Control',
+          desc:"1/SR Riposte on miss; on hit choose Disarm/Trip/Menace.", req:'AX1' },
+        { id:'AX3', x:0, y:25,  label:'Onslaught',
+          desc:"1/LR straight-line rush, attacking up to 3 passed creatures; push on failed STR save.", req:'AX2' },
+        { id:'AX4', x:-35,y:10,  label:'Mighty Blow',
+          desc:"1/SR attack +2 to hit; add 1 weapon die; CON save or speed −10 ft.", req:'AX2' },
+        { id:'AX5', x:35, y:10,  label:'Sweep',
+          desc:"1/SR one roll vs all in reach; hits deal normal damage; STR save or prone.", req:'AX4' },
+        { id:'AXL1',x:-120,y:60,  label:'Pommel Strike',
+          desc:"1/SR bonus after hit: STR save or prone.", req:'AX2' },
+        { id:'AXL2',x:-150,y:25,  label:'Indomitable',
+          desc:"1/LR 1-minute buff: can’t be knocked prone; advantage vs stun.", req:'AXL1' },
+        { id:'AXL3',x:-170,y:-15, label:'Stunning Blows',
+          desc:"Once/turn on hit: CON save or stunned until your next turn; uses/LR = STR mod (min 1).", req:'AXL2' },
+        { id:'AXL4',x:-140,y:-55, label:'Critical Strike',
+          desc:"1/LR declare critical on hit; if target ≤25% HP, +2d6 slashing.", req:'AXL3' },
+        { id:'AXR1',x:120, y:60,  label:'Sunder Arms',
+          desc:"1/SR on hit: CON save or −2 to attack rolls until your next turn.", req:'AX2' },
+        { id:'AXR2',x:150, y:25,  label:'Shattering Blows',
+          desc:"+1d8 vs constructs/objects; advantage to break objects.", req:'AXR1' },
+        { id:'AXR3',x:170, y:-15, label:'Sunder Armor',
+          desc:"1/SR on hit: CON save or −2 AC until end of next turn.", req:'AXR2' },
+        { id:'AXR4',x:140, y:-55, label:'Destroyer',
+          desc:"On hit, target takes +2 damage from your weapon attacks until your next turn.", req:'AXR3' },
+        { id:'AXT1',x:-60, y:-85, label:'Sweeping Strike',
+          desc:"1/LR 10-ft cone: primary hit crits; others take normal; all hit STR save or prone.", req:'AX5' },
+        { id:'AXT2',x:60,  y:-85, label:'Impact',
+          desc:"Toggle: each 2H hit deals +1 thunder splash to others within 5 ft (once per hit).", req:'AXT1' },
+        { id:'AXT3',x:0,   y:-110,label:'Reaving Storm',
+          desc:"1/LR, up to 1 min: first time each turn you hit, immediately make a second attack vs a different creature.", req:'AXT2' },
+      ]
+    };
+    if (typeof drawTree==='function' && window.current==='Warrior' && (window.subIndex?.Warrior||0)===2) drawTree();
+  </script>
+
+  <!-- ===== Warrior 4: Archery (Bow & Arrow) ===== -->
+  <script>
+    TITLES.Warrior[3] = "Archery";
+    TREES.Warrior[3] = {
+      nodes: [
+        { id:'AR0', x:-120, y:-50, label:'Archery Mastery',
+          desc:'Bows and Crossbows deal 20% more damage.' },
+        { id:'AR1', x:-100,  y:-120, label:'Long Shot',
+          desc:'1/SR attempt a Long Shot: no disadvantage at max range.', req:'AR0' },
+        { id:'AR2', x:-40,  y:-200, label:'Thread the Needle',
+          desc:'1/encounter ignore −2 AC vs targets that haven’t moved this round (declare at round start).', req:'AR1' },
+        { id:'AR3', x:-80,  y:0, label:'Quick Shot',
+          desc:'1/SR bonus-action extra attack.', req:'AR2' },
+        { id:'AR4', x:0, y:0, label:'Clean Kill',
+          desc:'1/LR Precise: crit on 18–20 and +10% damage.', req:'AR3' },
+        { id:'AR5', x:60, y:0, label:'Snipe',
+          desc:'1/LR: if you crit a target you hit last round, crit deals ×3; reroll any damage dice (keep 2nd).', req:'AR4' },
+        { id:'AR6', x:150, y:0, label:'Hawkeye',
+          desc:'1/day slow time for 1 round; your next hit on that enemy is an automatic crit.', req:'AR5' },
+        { id:'AR7', x:250, y:0, label:'Three Crows',
+          desc:'If you hit the same target beyond 25 ft three times in a row: bonus 20% damage instance and knock prone.', req:'AR6' },
+
+
+        // Bow crescent (left)
+        { id:'ARB1', x:-130, y:50, label:'Crippling Shot',
+          desc:'1/SR: target speed 10 ft and next attack/save at disadvantage.', req:'AR0' },
+        { id:'ARB2', x:-120, y:150,   label:'Wingstrike',
+          desc:'Use bow as melee bash (1d6), not improvised.', req:'ARB1' },
+{ id:'ARB3', x:-80, y:220,  label:"Hunter's Discipline",
+          desc:'Recover twice as many arrows/bolts after encounters.', req:'ARB2' },
+        
+        // Additional Archery Abilities
+        { id:'AR8', x:-160, y:-50, label:'Melee Archer',
+          desc:"You no longer receive disadvantage when using a bow in melee range.", req:'AR0' },
+        
+        { id:'AR9', x:-200, y:-100, label:'Aim',
+          desc:"You choose to reduce your attacks to once per round, reduce movement to 0 and gain advantage on your attack roll as well as crit on an 18-20.", req:'AR8' },
+        
+        { id:'AR10', x:300, y:50, label:'Defensive Fire',
+          desc:"You activate this at the start of your turn as a bonus action. Granting those within 10ft of the creature you attack +1 to their AC for the round.", req:'AR7' },
+        
+        { id:'AR11', x:200, y:-50, label:'Pinning Shot',
+          desc:"As a bonus action you activate pinning shot for the round. When you hit the next medium or large creature it is restrained. The next time this creature is hit, the pinned effect is removed or at the rounds end.", req:'AR6' },
+        
+        { id:'AR12', x:250, y:-100, label:'Critical Shot',
+          desc:"Using a bonus action, once per encounter, add an additional half of the damage dealt. If the attack fails, the shot is lost.", req:'AR11' },
+        
+        { id:'AR13', x:100, y:-100, label:'Arrow of Slaying',
+          desc:"Once per encounter you can use a bonus action to ensure maximum damage on your next shot.", req:'AR5' },
+        
+        { id:'AR14', x:50, y:-150, label:'Rapid Shot',
+          desc:"Choose to have disadvantage on your next shot and half distance to deal a second attack as part of your attack action dealing half damage.", req:'AR13' },
+        
+        { id:'AR15', x:150, y:-150, label:'Shattering Shot',
+          desc:"As a bonus action you can choose to find a chink in the armour of an enemy, removing -2AC to their armour for the round.", req:'AR12' }
+      ]
+    };
+    if (typeof drawTree==='function' && window.current==='Warrior' && (window.subIndex?.Warrior||0)===3) drawTree();
+  </script>
+
+
+<!-- ===== Warrior Secret 9: Reaver - Inverted Pentagram (+ Lock Gate) ===== -->
+<script>
+(function(){
+  TITLES.Warrior[9] = "Reaver";
+  TREES.Warrior[9] = {
+    nodes: [
+      // CENTER
+      { id:"RV0", x:0, y:140, label:"Dark Pact",
+        desc:"You have made a pact with dark forces. You can channel unholy power at a cost. Gain darkvision 60ft and resistance to necrotic damage." },
+
+      // DEMON PATH (top-left point of pentagram)
+      { id:"RVD1", x:-100, y:80, label:"Summon Demon",
+        desc:"Once per long rest, summon a minor demon (CR 1/4) that obeys you for 10 minutes. It fights alongside you.", req:"RV0" },
+      
+      { id:"RVD2", x:-140, y:30, label:"Demonic Strength",
+        desc:"Bonus action, channel demon power for 1 minute. Gain +2 to melee damage, advantage on Intimidation. Take 1d6 necrotic per turn. Once per short rest.", req:"RVD1" },
+      
+      { id:"RVD3", x:-120, y:-30, label:"Possession",
+        desc:"Your summoned demon can attempt to possess an enemy (WIS save). On fail, demon controls target for 1 minute. Once per long rest.", req:"RVD2" },
+      
+      { id:"RVD4", x:-60, y:-70, label:"Demonic Resilience",
+        desc:"While using Demonic Strength, gain temp HP equal to necrotic damage you take from it.", req:"RVD3" },
+
+      // TORTURE PATH (top-right point of pentagram)
+      { id:"RVT1", x:100, y:80, label:"Cruel Strike",
+        desc:"Once per turn, deal +1d6 damage. Target must make CON save or have disadvantage on next attack roll. Once per short rest.", req:"RV0" },
+      
+      { id:"RVT2", x:140, y:30, label:"Torment",
+        desc:"When you reduce an enemy to half HP or less, you can use reaction to inflict wracking pain. They're stunned until end of their next turn. Once per short rest.", req:"RVT1" },
+      
+      { id:"RVT3", x:120, y:-30, label:"Blood for Power",
+        desc:"When you deal damage to a bleeding or wounded creature (below half HP), regain 1d8 HP. Once per turn.", req:"RVT2" },
+      
+      { id:"RVT4", x:60, y:-70, label:"Executioner",
+        desc:"Your critical hits against wounded enemies (below half HP) deal an additional 2d8 damage.", req:"RVT3" },
+
+      // BLOOD PATH (bottom-right point of pentagram)
+      { id:"RVB1", x:80, y:170, label:"Blood Frenzy",
+        desc:"When you take damage, enter a frenzy. Next attack deals +1d8 damage. Can stack up to 3 times.", req:"RV0" },
+      
+      { id:"RVB2", x:120, y:200, label:"Devour",
+        desc:"When you kill an enemy, consume its life force as bonus action. Regain HP equal to your level. Once per short rest.", req:"RVB1" },
+      
+      { id:"RVB3", x:90, y:230, label:"Blood Sacrifice",
+        desc:"As action, take 2d10 damage to deal +4d10 on your next attack. Usable while above half HP. Once per short rest.", req:"RVB2" },
+
+      // DARKNESS PATH (bottom-left point of pentagram)
+      { id:"RVK1", x:-80, y:170, label:"Shadow Step",
+        desc:"Bonus action, teleport 30ft to dim light/darkness you can see. Gain advantage on next attack. Once per short rest.", req:"RV0" },
+      
+      { id:"RVK2", x:-120, y:200, label:"Aura of Dread",
+        desc:"Bonus action, emit aura for 1 minute. Enemies within 10ft have disadvantage on saves vs fear. Once per long rest.", req:"RVK1" },
+      
+      { id:"RVK3", x:-90, y:230, label:"Dark Blade",
+        desc:"Your weapon deals necrotic damage instead of its normal type. Attacks ignore resistance to necrotic. Can toggle on/off.", req:"RVK2" },
+
+      // BOTTOM POINT (death/unholy)
+      { id:"RVU1", x:0, y:220, label:"Unholy Vitality",
+        desc:"When you drop below half HP, gain +2 AC and +10ft movement. Lasts until you regain HP above half.", req:"RV0" },
+      
+      { id:"RVU2", x:0, y:260, label:"Death's Door",
+        desc:"Once per long rest, when you drop to 0 HP, drop to 1 instead and immediately make a melee attack at advantage.", req:"RVU1" },
+
+      // CONVERGENCE (center top - inverted pentagram point)
+      { id:"RV_MASTER", x:0, y:-110, label:"Dark Champion",
+        desc:"You have become a vessel of darkness. Once per long rest, transform for 1 minute: immunity to fear/charm, attacks deal +2d8 necrotic, resistance to all damage, and critical hits on 18-20. When transformation ends, gain 1 exhaustion.", reqs:["RVD4","RVT4"] }
+    ]
+  };
+
+  const KEY = 'unlock_reaver';
+  const PASS = 'profane';
+
+  function onRV(){ try{ return current === 'Warrior' && ((subIndex?.Warrior ?? 0) === 9); }catch(_){ return false; } }
+
+  function buildGate(){
+    let ov = document.getElementById('reaverlock');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'reaverlock';
+    Object.assign(ov.style, {
+      position:'absolute', top:'15%', left:'15%', width:'70%', height:'70%',
+      zIndex:'25', display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(0,0,0,.35)'
+    });
+
+    const frost = document.createElement('video');
+    frost.src = './Shield_Magic_Frost_1_Loop_COLOR_4_1200x1200.webm';
+    frost.autoplay = true; frost.loop = true; frost.muted = true; frost.playsInline = true;
+    Object.assign(frost.style, { position:'absolute', width:'90vmin', height:'90vmin', objectFit:'cover', opacity:'0.9' });
+
+    const label = document.createElement('div');
+    label.textContent = 'LOCKED';
+    Object.assign(label.style, {
+      position:'absolute', transform:'rotate(-15deg)',
+      fontFamily:"'Cinzel Decorative', serif", fontWeight:'700',
+      fontSize:'min(8vmin, 72px)', letterSpacing:'0.2em',
+      color:'#c7e6ff', textShadow:'0 0 18px #9fd3ff, 0 0 36px rgba(159,211,255,.55)'
+    });
+
+    ov.append(frost, label);
+    ov.addEventListener('click', ()=>{
+      const input = (prompt('Speak the forbidden word:')||'').trim().toLowerCase();
+      if (input !== PASS) return;
+
+      const burst = ['./Impact_Hit_2_Flash_1_COLOR_3_1200x1200.webm','./Explosion_Particles_1_Flash_Shattert_COLOR_1_1200x1200.webm'];
+      let pending = burst.length;
+      burst.forEach((src, i)=>{
+        const v = document.createElement('video');
+        v.src = src; v.muted = true; v.playsInline = true;
+        Object.assign(v.style, { position:'absolute', width:i? '98vmin':'88vmin', height:i? '98vmin':'88vmin', objectFit:'contain', display:'none' });
+        ov.appendChild(v);
+        setTimeout(()=>{
+          v.style.display='block';
+          const done = ()=>{ v.remove(); if(--pending<=0) fade(); };
+          v.addEventListener('ended', done, {once:true});
+          v.play().catch(()=> setTimeout(done, 2000));
+          setTimeout(done, 3500);
+        }, i? 200:0);
+      });
+
+      function fade(){
+        ov.style.transition='opacity 800ms ease';
+        ov.style.opacity='0';
+        setTimeout(()=>{ ov.remove(); try{ localStorage.setItem(KEY,'1'); }catch(_){} }, 820);
+      }
+    });
+
+    document.body.appendChild(ov);
+    return ov;
+  }
+
+  function maybeGate(){
+    let unlocked = false;
+    try{ unlocked = localStorage.getItem(KEY) === '1'; }catch(_){}
+    const gate = document.getElementById('reaverlock');
+    if (onRV()){
+      if (!unlocked && !gate) buildGate();
+      if (unlocked && gate) gate.remove();
+    } else {
+      gate?.remove();
+    }
+  }
+
+  if (!window.__reaverGateHooked && typeof window.drawTree === 'function'){
+    const _draw = window.drawTree;
+    window.drawTree = function(){ const r=_draw.apply(this, arguments); try{ maybeGate(); }catch(_){} return r; };
+    window.__reaverGateHooked = true;
+  }
+  window.addEventListener('load', maybeGate);
+  setTimeout(maybeGate, 120);
+
+  window.reaver = {
+    lock(){ try{ localStorage.setItem(KEY,'0'); }catch(_){} if (onRV()) buildGate(); },
+    unlock(){ try{ localStorage.setItem(KEY,'1'); }catch(_){} document.getElementById('reaverlock')?.remove(); }
+  };
+})();
+</script>
+
+
+<!-- ===== Warrior 5: Champion - Battle Standard ===== -->
+<script>
+TITLES.Warrior[5] = "Champion";
+TREES.Warrior[5] = {
+  nodes: [
+    // FLAGPOLE BASE
+    { id:"CH0", x:0, y:150, label:"Tactical Mind",
+      desc:"You gain proficiency in one of: History, Insight, or Persuasion. Once per short rest, you can grant an ally within 30ft advantage on their next attack as a bonus action." },
+
+    // POLE (center column)
+    { id:"CH1", x:0, y:100, label:"Rally",
+      desc:"Action, all allies within 30ft gain temp HP equal to your CHA mod + prof bonus. Once per short rest.", req:"CH0" },
+    
+    { id:"CH2", x:0, y:50, label:"Inspiring Presence",
+      desc:"When you use Rally, allies also add +1d4 to their next attack or save.", req:"CH1" },
+    
+    { id:"CH3", x:0, y:0, label:"Commander's Voice",
+      desc:"Bonus action, issue command. One ally within 60ft can immediately use reaction to move half speed or make one attack.", req:"CH2" },
+    
+    { id:"CH4", x:0, y:-50, label:"Tactical Superiority",
+      desc:"You learn 3 maneuvers. Gain 4 superiority dice (d8). Regain all on short rest.", req:"CH3" },
+
+    // FLAG LEFT SIDE (defensive maneuvers)
+    { id:"CHL1", x:-80, y:-80, label:"Defensive Maneuver: Parry",
+      desc:"Maneuver: Reaction when hit, add superiority die to AC. If attack misses, ally within 5ft can make opportunity attack.", req:"CH4" },
+    
+    { id:"CHL2", x:-120, y:-110, label:"Defensive Maneuver: Brace",
+      desc:"Maneuver: Reaction when ally within 5ft is hit, reduce damage by superiority die + your STR mod. You take half the reduced amount.", req:"CHL1" },
+    
+    { id:"CHL3", x:-100, y:-150, label:"Shield Wall",
+      desc:"Action, designate 10ft area for 1 minute. Allies in area gain +2 AC and advantage on STR/CON saves. Once per long rest.", req:"CHL2" },
+
+    // FLAG RIGHT SIDE (offensive maneuvers)
+    { id:"CHR1", x:80, y:-80, label:"Offensive Maneuver: Precision",
+      desc:"Maneuver: Add superiority die to attack roll. On hit, deal extra damage equal to die roll.", req:"CH4" },
+    
+    { id:"CHR2", x:120, y:-110, label:"Offensive Maneuver: Press",
+      desc:"Maneuver: When ally within 30ft hits with attack, use reaction to let them add superiority die to damage and push target 10ft.", req:"CHR1" },
+    
+    { id:"CHR3", x:100, y:-150, label:"Coordinated Assault",
+      desc:"Action, designate target for 1 minute. All allies have advantage on attacks against that target. Once per short rest.", req:"CHR2" },
+
+    // FLAG TOP (converging abilities)
+    { id:"CHT1", x:-50, y:-180, label:"Hold the Line",
+      desc:"Reaction when ally within 30ft would be reduced to 0 HP. They drop to 1 HP instead. Once per long rest.", req:"CHL3" },
+    
+    { id:"CHT2", x:50, y:-180, label:"For Glory!",
+      desc:"Bonus action, all allies within 30ft gain +2 to attacks and critical hit on 19-20 for 1 minute. Once per long rest.", req:"CHR3" },
+
+    // STANDARD TOP (ultimate)
+    { id:"CH_MASTER", x:0, y:-220, label:"Master Tactician",
+      desc:"You are a legendary battlefield commander. Rally affects all allies within 60ft and grants them +2 AC. Superiority dice become d10s. You can use Commander's Voice twice per turn. Once per long rest: all allies within 60ft act on your initiative for 1 minute.", reqs:["CHT1","CHT2"] }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Warrior' && (window.subIndex?.Warrior||0)===5) drawTree();
+</script>
+
+<!-- ===== Warrior 5: Dual Wielding - Crossed Swords ===== -->
+<script>
+TITLES.Warrior[4] = "Dual Wielding";
+TREES.Warrior[4] = {
+  nodes: [
+    // CENTER CROSSING POINT (entry)
+    { id:"DW0", x:0, y:0, label:"Dual-Weapon Training",
+      desc:"You can fight effectively with a weapon in each hand. When dual wielding, your off-hand attack does not require a bonus action once per turn." },
+
+    // LEFT SWORD BLADE (going up-left)
+    { id:"DWL1", x:-40, y:-40, label:"Dual-Weapon Finesse",
+      desc:"When dual wielding, you can add your ability modifier to the damage of your off-hand attack.", req:"DW0" },
+    
+    { id:"DWL2", x:-80, y:-80, label:"Dual Striking",
+      desc:"Once per short rest, when you take the Attack action while dual wielding, you can make one additional attack with each weapon.", req:"DWL1" },
+    
+    { id:"DWL3", x:-120, y:-120, label:"Riposte",
+      desc:"When an enemy misses you with a melee attack while you're dual wielding, you can use your reaction to make an attack with your off-hand weapon.", req:"DWL2" },
+    
+    { id:"DWL4", x:-160, y:-160, label:"Flurry",
+      desc:"When dual wielding, your critical hit range increases by 1 (19-20 becomes 18-20).", req:"DWL3" },
+
+    // RIGHT SWORD BLADE (going up-right)
+    { id:"DWR1", x:40, y:-40, label:"Dual-Weapon Expert",
+      desc:"While dual wielding, you gain +1 AC.", req:"DW0" },
+    
+    { id:"DWR2", x:80, y:-80, label:"Cripple",
+      desc:"Once per short rest, when you hit with both weapons in the same turn, the target's speed is reduced by 10 feet until the end of their next turn.", req:"DWR1" },
+    
+    { id:"DWR3", x:120, y:-120, label:"Punisher",
+      desc:"When dual wielding, if you hit the same target with both weapons in one turn, deal an additional 1d6 damage.", req:"DWR2" },
+    
+    { id:"DWR4", x:160, y:-160, label:"Momentum",
+      desc:"When you score a critical hit while dual wielding, your next attack this turn has advantage.", req:"DWR3" },
+
+    // LEFT SWORD HILT (going down-left)
+    { id:"DWL5", x:-40, y:40, label:"Dual-Weapon Sweep",
+      desc:"Once per short rest, you can make one melee attack with each weapon against every enemy within your reach.", req:"DW0" },
+    
+    { id:"DWL6", x:-80, y:80, label:"Twin Strikes",
+      desc:"When you take the Attack action while dual wielding, you can forgo one attack to make your next two attacks with advantage.", req:"DWL5" },
+    
+    { id:"DWL7", x:-120, y:120, label:"Low Blow",
+      desc:"Once per short rest, when you hit with your off-hand weapon, the target must make a Constitution saving throw or be stunned until the end of your next turn.", req:"DWL6" },
+
+    // RIGHT SWORD HILT (going down-right)
+    { id:"DWR5", x:40, y:40, label:"Dual-Weapon Mastery",
+      desc:"While dual wielding, you can use two-weapon fighting even when the weapons you are wielding aren't light.", req:"DW0" },
+    
+    { id:"DWR6", x:80, y:80, label:"Whirlwind",
+      desc:"Once per long rest, you can spin in a deadly circle. Make one melee attack roll against all creatures within 5 feet of you.", req:"DWR5" },
+    
+    { id:"DWR7", x:120, y:120, label:"Find Vitals",
+      desc:"Once per long rest, your critical hits while dual wielding deal maximum damage instead of rolling.", req:"DWR6" },
+
+    // CONVERGENCE (requires paths from both swords)
+    { id:"DW8", x:0, y:-200, label:"Unending Flurry",
+      desc:"You have mastered dual wielding. Once per long rest, for 1 minute you can make an off-hand attack whenever you take the Attack action, and all your attacks while dual wielding deal an additional 1d6 damage.", reqs:["DWL4","DWR4"] }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Warrior' && (window.subIndex?.Warrior||0)===4) drawTree();
+</script>
+
+
+  <!-- ===== Mage Secret 3: Blood Magic (+ Lock Gate) ===== -->
+  <script>
+    (function(){
+      // install the secret tree into Mage slot #3 (index 2)
+      TITLES.Mage[9] = "Blood Magic";
+      TREES.Mage[9] = {
+        nodes: [
+          { id:"BM0",  x:0,   y:170, label:"Blood Rite",
+            desc:"Bonus action toggle. While active, take 1d4 bleed each round. You may spend Hit Dice instead of spell slots for necromancy spells. Healing you receive is halved until toggled off." },
+
+          { id:"BM1R", x:90,  y:120, label:"Hemorrhage",
+            desc:"Once per turn when you deal spell damage, take 1d4 to add +1d6 necrotic to that roll. Bloodless are immune.", req:"BM0" },
+          { id:"BM2R", x:130, y:75,  label:"Blood Wound",
+            desc:"1/SR: 20-ft radius CON save. Fail: 3d6 necrotic & restrained until your next turn starts; success: half, not restrained.", req:"BM1R" },
+          { id:"BM3R", x:110, y:20,  label:"Crimson Echo",
+            desc:"Once/round when a creature within 30 ft fails a save, siphon 2 HP to gain advantage on your next spell attack before your next turn.", req:"BM2R" },
+
+          { id:"BM1L", x:-90,  y:120, label:"Sanguine Charm",
+            desc:"When casting enchantment, spend 1 Hit Die to impose disadvantage on the target’s first save vs that spell.", req:"BM0" },
+          { id:"BM2L", x:-130, y:75,  label:"Blood Control",
+            desc:"1/SR: WIS save or controlled until end of your next turn; success: 3d8 necrotic. No effect on bloodless.", req:"BM1L" },
+          { id:"BM3L", x:-110, y:20,  label:"Puppet Strings",
+            desc:"Your damaging spells vs a creature charmed by you ignore necrotic resistance.", req:"BM2L" },
+
+          { id:"BM4R", x:60,  y:-15, label:"Vital Surge",
+            desc:"When you reduce a hostile creature to 0 HP, regain 1 spent Hit Die (once/turn).", req:"BM3R" },
+          { id:"BM4L", x:-60, y:-15, label:"Crimson Aegis",
+            desc:"Gain temp HP = PB whenever you spend a Hit Die while Blood Rite is active (once/turn).", req:"BM3L" },
+
+          { id:"BM5",  x:0,   y:-55, label:"Blood Sacrifice",
+            desc:"1/SR bonus action: a willing ally within 30 ft takes 2d6 damage (cannot be reduced); you regain one L1 slot or two L1 slots.", reqs:["BM4R","BM4L"] },
+
+          { id:"BM6R", x:85,  y:-95, label:"Vascular Ruin",
+            desc:"1/LR action, 60 ft CON save; fail: 6d8 necrotic + disadvantage on CON saves until end of your next turn; success: half.", req:"BM5" },
+          { id:"BM6L", x:-85, y:-95, label:"Sanguine Ward",
+            desc:"While Blood Rite is active: resistance to psychic; advantage vs charm/frighten; ends when toggled off.", req:"BM5" },
+
+          { id:"BM7",  x:0,   y:-130,label:"Blood Crown",
+            desc:"1/LR for 1 min: necrotic spells ignore resistance; when casting with Hit Dice, treat one die as max.", reqs:["BM6R","BM6L"] }
+        ]
+      };
+
+      // --- Lock overlay gate (password) ---
+      const KEY  = 'unlock_blood_magic';
+      const PASS = 'maleficarum'; // lowercase ok
+
+      function onBM(){ try{ return current === 'Mage' && ((subIndex?.Mage ?? 0) === 9); }catch(_){ return false; } }
+
+
+      function buildGate(){
+        let ov = document.getElementById('bloodlock');
+        if (ov) return ov;
+        ov = document.createElement('div');
+        ov.id = 'bloodlock';
+        Object.assign(ov.style, {
+  position:'absolute',
+  top:'15%', left:'15%', width:'70%', height:'70%',
+  zIndex:'25',
+  display:'flex', alignItems:'center', justifyContent:'center',
+  background:'rgba(0,0,0,.35)'
+});
+
+
+        const frost = document.createElement('video');
+        frost.src = './Shield_Magic_Frost_1_Loop_COLOR_4_1200x1200.webm';
+        frost.autoplay = true; frost.loop = true; frost.muted = true; frost.playsInline = true;
+        Object.assign(frost.style, { position:'absolute', width:'90vmin', height:'90vmin', objectFit:'cover', opacity:'0.9' });
+
+        const label = document.createElement('div');
+        label.textContent = 'LOCKED';
+        Object.assign(label.style, {
+          position:'absolute', transform:'rotate(-15deg)',
+          fontFamily:"'Cinzel Decorative', serif", fontWeight:'700',
+          fontSize:'min(8vmin, 72px)', letterSpacing:'0.2em',
+          color:'#c7e6ff', textShadow:'0 0 18px #9fd3ff, 0 0 36px rgba(159,211,255,.55)'
+        });
+
+        ov.append(frost, label);
+        ov.addEventListener('click', ()=>{
+          const input = (prompt('Enter password:')||'').trim().toLowerCase();
+          if (input !== PASS) return;
+
+          // burst effects then fade
+          const burst = ['./Impact_Hit_2_Flash_1_COLOR_3_1200x1200.webm','./Explosion_Particles_1_Flash_Shattert_COLOR_1_1200x1200.webm'];
+          let pending = burst.length;
+          burst.forEach((src, i)=>{
+            const v = document.createElement('video');
+            v.src = src; v.muted = true; v.playsInline = true;
+            Object.assign(v.style, { position:'absolute', width:i? '98vmin':'88vmin', height:i? '98vmin':'88vmin', objectFit:'contain', display:'none' });
+            ov.appendChild(v);
+            setTimeout(()=>{
+              v.style.display='block';
+              const done = ()=>{ v.remove(); if(--pending<=0) fade(); };
+              v.addEventListener('ended', done, {once:true});
+              v.play().catch(()=> setTimeout(done, 2000));
+              setTimeout(done, 3500);
+            }, i? 200:0);
+          });
+
+          function fade(){
+            ov.style.transition='opacity 800ms ease';
+            ov.style.opacity='0';
+            setTimeout(()=>{ ov.remove(); try{ localStorage.setItem(KEY,'1'); }catch(_){} }, 820);
+          }
+        });
+
+        document.body.appendChild(ov);
+        return ov;
+      }
+
+      function maybeGate(){
+        let unlocked = false;
+        try{ unlocked = localStorage.getItem(KEY) === '1'; }catch(_){}
+        const gate = document.getElementById('bloodlock');
+        if (onBM()){
+          if (!unlocked && !gate) buildGate();
+          if (unlocked && gate) gate.remove();
+        } else {
+          gate?.remove();
+        }
+      }
+
+      // hook drawTree once
+      if (!window.__bloodGateHooked && typeof window.drawTree === 'function'){
+        const _draw = window.drawTree;
+        window.drawTree = function(){ const r=_draw.apply(this, arguments); try{ maybeGate(); }catch(_){} return r; };
+        window.__bloodGateHooked = true;
+      }
+      window.addEventListener('load', maybeGate);
+      setTimeout(maybeGate, 120);
+
+      // console helpers + buttons support
+      window.bloodMagic = {
+        lock(){ try{ localStorage.setItem(KEY,'0'); }catch(_){} if (onBM()) buildGate(); },
+        unlock(){ try{ localStorage.setItem(KEY,'1'); }catch(_){} document.getElementById('bloodlock')?.remove(); }
+      };
+    })();
+  </script>
+
+  <!-- ===== Blood Magic UI toggles (Lock/Unlock buttons + status) ===== -->
+  <script>
+    (function(){
+      const KEY = 'unlock_blood_magic';
+      const $state  = document.getElementById('bmState');
+      const $lock   = document.getElementById('bmLockBtn');
+      const $unlock = document.getElementById('bmUnlockBtn');
+
+      function getVal(){ return (localStorage.getItem(KEY) === '1'); }
+      function setVal(v){ localStorage.setItem(KEY, v ? '1' : '0'); }
+
+      function updateUI(){
+        const ok = getVal();
+        if ($state) $state.textContent = 'Blood Magic: ' + (ok ? 'Unlocked' : 'Locked');
+      }
+
+      $lock?.addEventListener('click', ()=>{ setVal(false); window.bloodMagic?.lock?.(); updateUI(); });
+      $unlock?.addEventListener('click', ()=>{ setVal(true);  window.bloodMagic?.unlock?.(); updateUI(); });
+
+      if (localStorage.getItem(KEY) === null) setVal(false);
+      updateUI();
+    })();
+  </script>
+
+<script>
+  // Relock Blood Magic and (optionally) jump to the BM tree
+  window.relockBM = function ({goToBM=true} = {}) {
+    try { localStorage.setItem('unlock_blood_magic','0'); } catch(e){}
+    if (goToBM) {
+      window.current = 'Mage';
+      window.subIndex = window.subIndex || {};
+      window.subIndex.Mage = 1;
+    }
+    if (typeof drawTree === 'function') drawTree();
+    if (window.bloodMagic?.lock) window.bloodMagic.lock();
+    return 'Blood Magic relocked';
+  };
+
+  // If you only want to flip the flag (no nav / no redraw):
+  window.relockBMFlagOnly = function () {
+    try { localStorage.setItem('unlock_blood_magic','0'); } catch(e){}
+    return 'Flag set to locked';
+  };
+</script>
+
+
+
+<!-- ===== Expert 3: Stealth ===== -->
+<script>
+TITLES.Expert[2] = "Stealth";
+TREES.Expert[2] = {
+  nodes: [
+    // Base (torso)
+    { id:'ST0', x:0,   y:180, label:'Silent Step',
+      desc:"You no longer suffer disadvantage on Stealth checks when moving at full speed." },
+    { id:'ST1', x:40,  y:180, label:'Light Footed',
+      desc:"While moving at normal or fast pace, you can roll a Stealth check." },
+
+    // Cloak edges (branch out left & right)
+    { id:'ST2L', x:-100, y:120, label:'Veil of Shadows',
+      desc:"If you are lightly obscured, you can Hide as a bonus action instead of an action.", req:'ST0' },
+    { id:'ST2M', x:-40,  y:120, label:'Evasive Drift',
+      desc:"When you Hide, you can move up to 10 ft without breaking Stealth.", req:'ST0' },
+    { id:'ST2R', x:100,  y:120, label:'Into the Shadows',
+      desc:"Once per encounter, you may use the Disengage action as a bonus action.", req:'ST1' },
+
+    // Mid torso / arms
+    { id:'ST3C', x:0,   y:70, label:'Sneak Attack',
+      desc:"Sneak attacks with one-handed weapons deal an additional 25% damage.", reqs:['ST2M','ST2R'] },
+    { id:'ST3L', x:-80, y:70, label:'Shadow Dancer',
+      desc:"In dim light/darkness, once per encounter Dash as a bonus action.", req:'ST2L' },
+    { id:'ST3R', x:80,  y:70, label:'Fog of War',
+      desc:"In combat, you may roll Hide with advantage, but cannot move that round.", req:'ST2R' },
+
+    // Shoulders / cloak folds
+    { id:'ST4L', x:-130, y:20, label:'Silent Attack',
+      desc:"When attacking Surprised enemies you may roll with disadvantage to have one die automatically maxed.", req:'ST3L' },
+    { id:'ST4C', x:0,    y:20, label:'Smokescreen',
+      desc:"Gain Smokescreen power. Once/day cast Fog Cloud (no slot).", req:'ST3C' },
+    { id:'ST4R', x:130,  y:20, label:'Cloak and Dagger',
+      desc:"Once per round, breaking invisibility with a melee attack is a guaranteed crit.", req:'ST3R' },
+
+    // Head / hood (final tier)
+    { id:'ST5L', x:-60, y:-40, label:'Phantom Step',
+      desc:"When using Shadow Dancer, you become invisible until your next turn or until you act.", req:'ST4L' },
+    { id:'ST5C', x:0,   y:-60, label:'Sneak Mastery',
+      desc:"While in Stealth, reroll the dice before outcome is declared. Uses/day = DEX mod.", req:'ST4C' },
+
+{ id:'ST5R', x:60,  y:-40, label:'Shadow Warrior',
+      desc:"Entering Stealth in combat grants 1 round of invisibility, but halves your movement speed.", req:'ST4R' },
+    
+    // Additional Stealth Abilities
+    { id:'ST6L', x:-100, y:-80, label:'Shadow Form',
+      desc:"While flanking a creature you gain an additional 1d4 to damage.", req:'ST5L' },
+    
+    { id:'ST6C', x:0, y:-100, label:'Decoy',
+      desc:"While taking the hide action, you're able to create a decoy from a noise or effect at the location you last were for one round, drawing the attention of others.", req:'ST5C' },
+    
+    { id:'ST6R', x:100, y:-80, label:'Shadow Striking',
+      desc:"While invisible your critical chance increases to 18-20.", req:'ST5R' }
+  ]
+
+};
+if (typeof drawTree==='function' && window.current==='Expert' && (window.subIndex?.Expert||0)===2) drawTree();
+</script>
+
+
+
+
+<!-- ===== Expert 3: Sleight of Hand – Key Shape (>----III) ===== -->
+<script>
+TITLES.Expert[3] = "Sleight of Hand";
+TREES.Expert[3] = {
+  nodes: [
+    // TIP ">" (root + three early splits)
+    { id:'KH0',  x:-220, y:0,   label:'Quick Hands',
+      desc:"You gain advantage on Dexterity (Sleight of Hand) checks when attempting to pickpocket or perform sleight of hand tricks." },
+
+    { id:'PP1',  x:-180, y:-40, label:'Street Thief',
+      desc:"If you fail a Sleight of Hand check to steal something, the target only notices if you failed by 5 or more.", req:'KH0' },
+
+    { id:'LK1',  x:-180, y:0,  label:'Nimble Tools',
+      desc:"Failing to disarm a trap or pick a lock no longer breaks a tool on the first failed attempt.", req:'KH0' },
+
+    { id:'TR1',  x:-180, y:40,  label:'Trapsmith',
+      desc:"You gain proficiency with Thieves' Tools if you lack it. You can identify traps with advantage and craft simple traps (bear trap, tripwire, alarm).", req:'KH0' },
+
+    // SHAFT - TOP LANE (pickpocketing)
+    { id:'PP2',  x:-100, y:-40, label:'Ghost Fingers',
+      desc:"Reroll 1s on Sleight of Hand checks to pickpocket. Once per long rest, automatically succeed on a DC 15 or lower pickpocket if the target is unaware and stationary.", req:'PP1' },
+
+    { id:'PP3',  x:120,  y:-40, label:'Phantom Thief',
+      desc:"Once per long rest, while making a Sleight of Hand check, become invisible, move up to 30 ft, and gain advantage on the check. If you fail, invisibility ends and you're plainly seen.", req:'PP2' },
+
+    // SHAFT - MIDDLE LANE (locks & disarming)
+    { id:'LK2',  x:-100, y:0,  label:'Lockpicking Mastery',
+      desc:"When picking a lock, you have a pool of points equal to your DEX modifier. Spend 1 point to automatically set a single pin. Resets on a long rest.", req:'LK1' },
+
+    { id:'LK3',  x:0,  y:0,  label:'Master Tumbler',
+      desc:"Once per short rest, gain advantage on checks to disarm traps or pick non-magical locks.", req:'LK2' },
+
+    { id:'LK4',  x:120,  y:0,  label:'Silent Mechanist',
+      desc:"Pick locks and disarm traps silently; success leaves no visible sign. Disarming a non-stationary trap lets you harvest parts to rebuild elsewhere.", req:'LK3' },
+
+    // SHAFT - BOTTOM LANE (trap-making)
+    { id:'TR2',  x:-100, y:40,  label:'Trap Crafting',
+      desc:"You can craft traps during a short rest. Snare trap (restrain), poison needle (1d8 poison + save), and caltrops (difficult terrain + 1d4 damage).", req:'TR1' },
+
+    { id:'TR3',  x:0, y:40,  label:'Advanced Traps',
+      desc:"Craft advanced traps: explosive (3d6 fire, 10ft radius), pit trap (10ft deep, 2d6 fall), net trap (restrained). Takes 1 hour to set.", req:'TR2' },
+
+    { id:'TR4',  x:120,  y:40,  label:'Trap Savant',
+      desc:"Your traps have +2 DC. You can disguise traps so they require Investigation DC 20 to spot. Can set traps as an action instead of 10 minutes.", req:'TR3' },
+
+    // TEETH "III" (right end - three prongs)
+    { id:'PP4',  x:220,  y:-60, label:'Flick of the Wrist',
+      desc:"Once per combat, pickpocket as a bonus action from an adjacent creature you haven't attacked this turn. On success, impose disadvantage on its next attack. On nat 20, steal two items.", req:'PP3' },
+
+    { id:'LK5',  x:220,  y:0, label:'Master Locksmith',
+      desc:"Once per long rest, use your Thieves' Tools as if casting *Knock* momentarily, bypassing magical locks for you only.", req:'LK4' },
+
+    { id:'TR5',  x:220,  y:60, label:'Master Trapper',
+      desc:"Once per long rest, create a master trap: magical alarm + glyph of warding effect. When triggered, casts a spell of 3rd level or lower that you know.", req:'TR4' }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Expert' && (window.subIndex?.Expert||0)===3) drawTree();
+</script>
+
+
+
+<!-- ===== Expert Secret 9: Assassin - Dagger in Heart (+ Lock Gate) ===== -->
+<script>
+(function(){
+  TITLES.Expert[9] = "Assassin";
+  TREES.Expert[9] = {
+    nodes: [
+      // HEART CENTER
+      { id:"AS0", x:0, y:0, label:"Contract Killer",
+        desc:"You have become an assassin. You can mark a target during a long rest. Against marked targets, you have advantage on Stealth checks and deal +1d6 damage on attacks." },
+
+      // DAGGER BLADE (pointing down into heart)
+      { id:"AS1", x:0, y:-60, label:"Assassinate",
+        desc:"You have advantage on attacks against creatures that haven't taken a turn yet. Hits against surprised creatures are automatic critical hits.", req:"AS0" },
+      
+      { id:"AS2", x:0, y:-100, label:"Death Strike",
+        desc:"When you hit a surprised creature, they must make CON save (DC 8+prof+DEX) or take double damage from the attack.", req:"AS1" },
+      
+      { id:"AS3", x:0, y:-140, label:"Silent Kill",
+        desc:"When you reduce a creature to 0 HP with a melee attack, you can prevent them from making sound. Other creatures don't notice unless they can see the kill.", req:"AS2" },
+      
+      { id:"AS4", x:0, y:-180, label:"Perfect Strike",
+        desc:"Once per long rest, you can declare a perfect strike before rolling. The attack automatically hits and is a critical hit. If target is surprised, they must make CON save or die instantly (if CR ≤ your level).", req:"AS3" },
+
+      // LEFT VENTRICLE (poison/toxins)
+      { id:"ASL1", x:-70, y:-30, label:"Poisoner",
+        desc:"You can apply poison to weapons as a bonus action. Gain proficiency with Poisoner's Kit. You can craft poisons during short rests.", req:"AS0" },
+      
+      { id:"ASL2", x:-110, y:-60, label:"Toxin Master",
+        desc:"Your poisons are more potent. Increase poison damage by +1d6 and poison DC by +2.", req:"ASL1" },
+      
+      { id:"ASL3", x:-130, y:-100, label:"Lingering Poison",
+        desc:"When you poison a target, they remain poisoned for 1 minute (CON save at end of each turn to end).", req:"ASL2" },
+      
+      { id:"ASL4", x:-110, y:-140, label:"Death's Kiss",
+        desc:"Once per long rest, craft a lethal poison that deals 6d6 poison damage and target must make CON save or be paralyzed for 1 minute.", req:"ASL3" },
+
+      // RIGHT VENTRICLE (stealth/infiltration)
+      { id:"ASR1", x:70, y:-30, label:"Infiltrator",
+        desc:"You can take the Hide action as a bonus action. You can't be tracked except by magical means.", req:"AS0" },
+      
+      { id:"ASR2", x:110, y:-60, label:"Shadow Step",
+        desc:"Once per short rest, teleport up to 60ft to a space you can see that is in dim light or darkness. Gain advantage on next attack.", req:"ASR1" },
+      
+      { id:"ASR3", x:130, y:-100, label:"Cloak of Shadows",
+        desc:"When in dim light or darkness, you can use action to become invisible until you attack, cast spell, or enter bright light. Once per short rest.", req:"ASR2" },
+      
+      { id:"ASR4", x:110, y:-140, label:"Death from Darkness",
+        desc:"Attacks you make while invisible deal an additional 2d6 damage.", req:"ASR3" },
+
+      // LEFT ATRIUM (intelligence gathering)
+      { id:"ASB1", x:-70, y:30, label:"Observant",
+        desc:"You can read lips. Gain proficiency in Insight if you lack it. You can study a target for 1 minute to learn one useful fact (DM's choice).", req:"AS0" },
+      
+      { id:"ASB2", x:-110, y:60, label:"Disguise Master",
+        desc:"Proficiency with Disguise Kit. You can create disguises in 1 minute. Investigation to see through your disguise is at disadvantage.", req:"ASB1" },
+      
+      { id:"ASB3", x:-130, y:100, label:"Impersonator",
+        desc:"You can mimic speech patterns and mannerisms. After studying someone for 1 hour, you can impersonate them (Investigation DC 20 to detect).", req:"ASB2" },
+
+      // RIGHT ATRIUM (escape/evasion)
+      { id:"ASE1", x:70, y:30, label:"Evasion",
+        desc:"When you make a DEX save for half damage, you take no damage on success and half on failure.", req:"AS0" },
+      
+      { id:"ASE2", x:110, y:60, label:"Uncanny Dodge",
+        desc:"Reaction, halve damage from an attack you can see. Usable prof bonus times per long rest.", req:"ASE1" },
+      
+      { id:"ASE3", x:130, y:100, label:"Escape Artist",
+        desc:"You have advantage on checks to escape grapples or restraints. You can squeeze through spaces as if you were one size smaller.", req:"ASE2" },
+
+      // DAGGER HANDLE (convergence)
+      { id:"AS_MASTER", x:0, y:-220, label:"Master Assassin",
+        desc:"You are a legendary killer. Your marked targets have no immunity to critical hits. Perfect Strike recharges on short rest. Once per long rest: after killing marked target, all evidence of your involvement vanishes (magical effect).", reqs:["AS4","ASL4","ASR4"] }
+    ]
+  };
+
+  const KEY = 'unlock_assassin';
+  const PASS = 'silent';
+
+  function onAS(){ try{ return current === 'Expert' && ((subIndex?.Expert ?? 0) === 9); }catch(_){ return false; } }
+
+  function buildGate(){
+    let ov = document.getElementById('assassinlock');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'assassinlock';
+    Object.assign(ov.style, {
+      position:'absolute', top:'15%', left:'15%', width:'70%', height:'70%',
+      zIndex:'25', display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(0,0,0,.35)'
+    });
+
+    const frost = document.createElement('video');
+    frost.src = './Shield_Magic_Frost_1_Loop_COLOR_4_1200x1200.webm';
+    frost.autoplay = true; frost.loop = true; frost.muted = true; frost.playsInline = true;
+    Object.assign(frost.style, { position:'absolute', width:'90vmin', height:'90vmin', objectFit:'cover', opacity:'0.9' });
+
+    const label = document.createElement('div');
+    label.textContent = 'LOCKED';
+    Object.assign(label.style, {
+      position:'absolute', transform:'rotate(-15deg)',
+      fontFamily:"'Cinzel Decorative', serif", fontWeight:'700',
+      fontSize:'min(8vmin, 72px)', letterSpacing:'0.2em',
+      color:'#c7e6ff', textShadow:'0 0 18px #9fd3ff, 0 0 36px rgba(159,211,255,.55)'
+    });
+
+    ov.append(frost, label);
+    ov.addEventListener('click', ()=>{
+      const input = (prompt('Speak the hidden word:')||'').trim().toLowerCase();
+      if (input !== PASS) return;
+
+      const burst = ['./Impact_Hit_2_Flash_1_COLOR_3_1200x1200.webm','./Explosion_Particles_1_Flash_Shattert_COLOR_1_1200x1200.webm'];
+      let pending = burst.length;
+      burst.forEach((src, i)=>{
+        const v = document.createElement('video');
+        v.src = src; v.muted = true; v.playsInline = true;
+        Object.assign(v.style, { position:'absolute', width:i? '98vmin':'88vmin', height:i? '98vmin':'88vmin', objectFit:'contain', display:'none' });
+        ov.appendChild(v);
+        setTimeout(()=>{
+          v.style.display='block';
+          const done = ()=>{ v.remove(); if(--pending<=0) fade(); };
+          v.addEventListener('ended', done, {once:true});
+          v.play().catch(()=> setTimeout(done, 2000));
+          setTimeout(done, 3500);
+        }, i? 200:0);
+      });
+
+      function fade(){
+        ov.style.transition='opacity 800ms ease';
+        ov.style.opacity='0';
+        setTimeout(()=>{ ov.remove(); try{ localStorage.setItem(KEY,'1'); }catch(_){} }, 820);
+      }
+    });
+
+    document.body.appendChild(ov);
+    return ov;
+  }
+
+  function maybeGate(){
+    let unlocked = false;
+    try{ unlocked = localStorage.getItem(KEY) === '1'; }catch(_){}
+    const gate = document.getElementById('assassinlock');
+    if (onAS()){
+      if (!unlocked && !gate) buildGate();
+      if (unlocked && gate) gate.remove();
+    } else {
+      gate?.remove();
+    }
+  }
+
+  if (!window.__assassinGateHooked && typeof window.drawTree === 'function'){
+    const _draw = window.drawTree;
+    window.drawTree = function(){ const r=_draw.apply(this, arguments); try{ maybeGate(); }catch(_){} return r; };
+    window.__assassinGateHooked = true;
+  }
+  window.addEventListener('load', maybeGate);
+  setTimeout(maybeGate, 120);
+
+  window.assassin = {
+    lock(){ try{ localStorage.setItem(KEY,'0'); }catch(_){} if (onAS()) buildGate(); },
+    unlock(){ try{ localStorage.setItem(KEY,'1'); }catch(_){} document.getElementById('assassinlock')?.remove(); }
+  };
+})();
+</script>
+
+
+
+<!-- ===== Expert 4: Speechcraft - Skull Profile ===== -->
+<script>
+TITLES.Expert[4] = "Speechcraft";
+TREES.Expert[4] = {
+  nodes: [
+    // TOP BACK OF SKULL
+    { id:'SP0', x:-100, y:150, label:'Charismatic Presence',
+      desc:"You gain proficiency in one Charisma skill of your choice if you lack it. Add half your proficiency bonus (rounded down) to Charisma checks that don't already use your proficiency bonus." },
+
+    // FOREHEAD CURVE
+    { id:'SP1P', x:-60, y:100, label:'Silver Tongue',
+      desc:"You gain advantage on Charisma (Persuasion) checks made to negotiate prices, secure deals or convince merchants.", req:'SP0' },
+    
+    { id:'SP1D', x:-20, y:80, label:'Forked Tongue',
+      desc:"When making a Deception check, you can re-roll a 10 or lower once per short rest.", req:'SP0' },
+    
+    { id:'SP1I', x:20, y:60, label:'Menacing Demeanor',
+      desc:"When making an Intimidation check, you can re-roll a 10 or lower once per short rest.", req:'SP0' },
+
+    // BROW RIDGE/EYE SOCKET
+    { id:'SP2P', x:-80, y:40, label:'Honeyed Words',
+      desc:"When making Persuasion checks, you can re-roll a 10 or lower once per short rest. Additionally, when you succeed on a Persuasion check by 5 or more, the target becomes friendly toward you for the next hour.", req:'SP1P' },
+    
+    { id:'SP2D', x:-40, y:20, label:'Web of Lies',
+      desc:"When you tell a lie as part of a Deception check, you can weave in a small truth that makes the lie more believable. You gain advantage on the check, but this can only be used once per creature per day.", req:'SP1D' },
+    
+    { id:'SP2I', x:60, y:40, label:'Imposing Stature',
+      desc:"Your physical presence becomes more intimidating. You can use your Strength modifier instead of Charisma for Intimidation checks, and creatures one size smaller than you have disadvantage on saving throws against being frightened by you.", req:'SP1I' },
+
+    // CHEEKBONE/TEMPLE
+    { id:'SP3P', x:-100, y:-10, label:'Diplomatic Immunity',
+      desc:"Once per long rest, you can invoke diplomatic protection when dealing with authority figures. Make a Persuasion check (DC 15). On success, you and your companions are granted safe passage or clemency for minor infractions for 24 hours.", req:'SP2P' },
+    
+    { id:'SP3D', x:-60, y:-20, label:'False Identity',
+      desc:"You can maintain a false persona with incredible skill. During a long rest, you can create a convincing false identity with appropriate documentation. Insight checks to see through this identity are made at disadvantage.", req:'SP2D' },
+    
+    { id:'SP3I', x:80, y:10, label:'Crushing Words',
+      desc:"Your verbal attacks can demoralize enemies in combat. As a bonus action, choose a creature within 30 feet that can hear you. Make an Intimidation check contested by their Wisdom saving throw. On success, they have disadvantage on their next attack roll and take 1d4 psychic damage.", req:'SP2I' },
+
+    // NASAL/MAXILLA
+    { id:'SP4P', x:-90, y:-50, label:'Master Negotiator',
+      desc:"You can convince others to accept deals that heavily favor you. When negotiating, you can make the other party believe they are getting a better deal than they actually are. Once per long rest, reduce the cost of services or goods by up to 25% through skillful negotiation.", req:'SP3P' },
+    
+    { id:'SP4D', x:-40, y:-60, label:'Seamless Deception',
+      desc:"Your lies become indistinguishable from truth to most observers. When you make a Deception check, creatures have disadvantage on Insight checks to detect your lies. Additionally, magical truth detection has only a 50% chance of revealing your deceptions.", req:'SP3D' },
+    
+    { id:'SP4I', x:60, y:-30, label:'Terrifying Reputation',
+      desc:"Word of your intimidating nature spreads. When you enter a settlement where you have previously succeeded on an Intimidation check, hostile creatures of the same type have a 25% chance to become neutral toward you instead of attacking immediately.", req:'SP3I' },
+
+    // UPPER TEETH/JAW
+    { id:'SP5P', x:-70, y:-90, label:'Inspiring Leader',
+      desc:"Your words can rally allies in dire situations. As an action, choose up to 6 friendly creatures within 30 feet who can hear you. Each regains hit points equal to your Charisma modifier + half your level, and gains advantage on their next saving throw. Once per long rest.", req:'SP4P' },
+    
+    { id:'SP5D', x:-20, y:-100, label:'Master Manipulator',
+      desc:"You can plant suggestions so subtly that targets believe the ideas are their own. Once per long rest, you can cast Suggestion without expending a spell slot, and the target does not realize they were magically influenced when the effect ends.", req:'SP4D' },
+    
+    { id:'SP5I', x:40, y:-70, label:'Aura of Dread',
+      desc:"Your mere presence instills fear in the weak-willed. Hostile creatures with Intelligence 6 or higher that start their turn within 10 feet of you must make a Wisdom saving throw (DC 8 + proficiency bonus + Charisma modifier). On failure, they are frightened of you until the start of their next turn. Once per long rest.", req:'SP4I' },
+
+    // LOWER JAW CURVE
+    { id:'SP6P', x:-50, y:-130, label:'Voice of Authority',
+      desc:"Your commands carry supernatural weight. Once per long rest, when you speak a direct command to a creature that can understand you, they must make a Wisdom saving throw (DC 8 + proficiency bonus + Charisma modifier). On failure, they must attempt to follow the command on their next turn as if under a Command spell.", req:'SP5P' },
+    
+    { id:'SP6D', x:0, y:-140, label:'Reality Shaper',
+      desc:"Your lies can temporarily alter minor aspects of reality. Once per long rest, when you tell a lie about a small, non-magical object or minor detail, make a Deception check (DC 20). On success, the lie becomes true for 10 minutes (DM discretion on what qualifies as 'minor').", req:'SP5D' },
+    
+    { id:'SP6I', x:20, y:-110, label:'Word of Fear',
+      desc:"You can speak a word of such terror that it manifests as physical force. Once per long rest, choose a creature within 30 feet. It must make a Wisdom saving throw (DC 8 + proficiency bonus + Charisma modifier). On failure, it takes 4d8 psychic damage and is frightened for 1 minute. On success, half damage and not frightened.", req:'SP5I' },
+
+    // CHIN POINT
+    { id:'SP7', x:-20, y:-170, label:'Master of Words',
+      desc:"You have achieved legendary mastery over the power of speech. Once per long rest, you can speak words of such profound power that they reshape reality around you. Choose one: cast Command, Suggestion, or Fear at 5th level without expending a spell slot, or speak a single word that deals 6d10 psychic damage to all hostile creatures within 30 feet (Wisdom save for half).", reqs:['SP6P','SP6D','SP6I'] }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Expert' && (window.subIndex?.Expert||0)===4) drawTree();
+</script>
+
+<!-- ===== Expert 5: Survival - Tree Shape ===== -->
+<script>
+TITLES.Expert[5] = "Survival";
+TREES.Expert[5] = {
+  nodes: [
+    // TRUNK (base)
+    { id:"SV0", x:0, y:150, label:"Survivalist",
+      desc:"You gain proficiency in Survival if you lack it. You have advantage on checks to find food and water in natural environments." },
+
+    // LEFT BRANCH - RANGER/TRACKING
+    { id:"SVL1", x:-80, y:110, label:"Tracker",
+      desc:"You can identify tracks and determine their age, size, and direction. You have advantage on Survival checks to track creatures.", req:"SV0" },
+    
+    { id:"SVL2", x:-120, y:70, label:"Hunter's Mark",
+      desc:"Once per long rest, you can mark a creature you can see. For 1 hour, you have advantage on Survival checks to track it and Perception checks to find it.", req:"SVL1" },
+    
+    { id:"SVL3", x:-140, y:30, label:"Ambush Predator",
+      desc:"When you attack a creature that hasn't noticed you, you deal an additional 1d6 damage. This increases to 2d6 at 10th level.", req:"SVL2" },
+    
+    { id:"SVL4", x:-150, y:-10, label:"Master Tracker",
+      desc:"You can track creatures through any terrain. You automatically succeed on Survival checks to track creatures of CR 5 or lower.", req:"SVL3" },
+
+    // RIGHT BRANCH - NATURE/PLANTS
+    { id:"SVR1", x:80, y:110, label:"Nature's Bounty",
+      desc:"You can identify edible plants, herbs, and fungi. When foraging, you find twice the normal amount of food.", req:"SV0" },
+    
+    { id:"SVR2", x:120, y:70, label:"Herbalist",
+      desc:"You gain proficiency with Herbalism Kit if you lack it. You can identify poisonous plants and create natural antidotes during a short rest.", req:"SVR1" },
+    
+    { id:"SVR3", x:140, y:30, label:"Natural Remedy",
+      desc:"Once per long rest, you can use plants to create a poultice that heals 2d8+WIS hit points when applied during a short rest.", req:"SVR2" },
+    
+    { id:"SVR4", x:150, y:-10, label:"Druid's Knowledge",
+      desc:"You learn to speak with animals for 10 minutes once per long rest. Plants and natural terrain never impede your movement.", req:"SVR3" },
+
+    // CENTER BRANCH - SHELTER/SURVIVAL
+    { id:"SVC1", x:0, y:90, label:"Shelter Crafter",
+      desc:"You can construct a shelter in 30 minutes that protects up to 6 creatures from weather. The shelter lasts 24 hours.", req:"SV0" },
+    
+    { id:"SVC2", x:0, y:50, label:"Fire Starter",
+      desc:"You can start a fire in any weather conditions without tools. You have resistance to cold damage.", req:"SVC1" },
+    
+    { id:"SVC3", x:0, y:10, label:"Wilderness Expert",
+      desc:"You and allies within your shelter gain the benefits of a long rest in 6 hours instead of 8.", req:"SVC2" },
+    
+    { id:"SVC4", x:0, y:-30, label:"One with Nature",
+      desc:"You can sense danger in natural environments. You cannot be surprised while in forests, mountains, or wilderness areas.", req:"SVC3" },
+
+    // UPPER BRANCHES - CONVERGENCE
+    { id:"SVU1", x:-70, y:-50, label:"Beast Companion",
+      desc:"You can bond with a beast of CR 1/4 or lower as a companion. It obeys your commands and acts on your turn.", req:"SVL4" },
+    
+    { id:"SVU2", x:70, y:-50, label:"Natural Camouflage",
+      desc:"In natural terrain, you can use your action to become invisible until you move or take an action. Once per short rest.", req:"SVR4" },
+
+    // TOP - MASTER
+    { id:"SV_MASTER", x:0, y:-90, label:"Master of the Wild",
+      desc:"You have become one with nature. You can communicate with any beast, plant, or natural feature. Once per long rest, you can call upon nature to aid you: summon animal allies, cause plants to entangle enemies in a 20ft radius, or create difficult terrain.", reqs:["SVU1","SVU2","SVC4"] }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Expert' && (window.subIndex?.Expert||0)===5) drawTree();
+</script>
+
+<!-- ===== Mage 2: Abjuration - Knight's Shield ===== -->
+<script>
+TITLES.Mage[2] = "Abjuration";
+TREES.Mage[2] = {
+  nodes: [
+    // SHIELD BOSS (center top - entry point)
+    { id:'AB0', x:0, y:180, label:'Arcane Warding',
+      desc:"When you cast a spell that grants temporary hit points, increase the temporary hit points by an amount equal to your proficiency bonus." },
+
+    // UPPER SHIELD EDGE (two initial branches)
+    { id:'AB1L', x:-80, y:140, label:'Shielded Casting',
+      desc:"When you cast Mage Armour or Shield, you gain temporary hit points equal to your Intelligence modifier plus 2.", req:'AB0' },
+    
+    { id:'AB1R', x:80, y:140, label:'Countering Reflex',
+      desc:"You gain the ability to use your reaction to cast Counterspell once per long rest without spending a spell slot.", req:'AB0' },
+
+    // LEFT SHIELD FACE (Shield Magic Path)
+    { id:'AB2L', x:-120, y:100, label:'Reactive Barrier',
+      desc:"When an enemy damages you, you can use your reaction to gain temporary hit points equal to your Intelligence modifier plus half your level plus proficiency bonus. Usable once per short rest.", req:'AB1L' },
+    
+    { id:'AB3L', x:-140, y:60, label:'Arcane Buffer',
+      desc:"When you cast the Shield spell you can instead choose to extend it an additional 5 feet once per short rest.", req:'AB2L' },
+    
+    { id:'AB4L', x:-130, y:20, label:'Warding Surge',
+      desc:"When you cast Shield, you can choose to extend its effect to a 5 foot radius once per short rest.", req:'AB3L' },
+    
+    { id:'AB5L', x:-120, y:-20, label:'Barrier of Elements',
+      desc:"When casting an abjuration spell on yourself, you gain resistance to one damage type of your choice until the start of your next turn.", req:'AB4L' },
+    
+    { id:'AB6L', x:-100, y:-60, label:'Aegis of Preservation',
+      desc:"When you activate Reactive Barrier, you also gain resistance to the damage type of the triggering attack until the end of your next turn.", req:'AB5L' },
+    
+    { id:'AB7L', x:-70, y:-100, label:'Surging Ward',
+      desc:"If Reactive Barrier absorbs half the damage from an attack, you can use the same reaction to redirect half of the absorbed damage to a creature within 30 feet.", req:'AB6L' },
+
+    // RIGHT SHIELD FACE (Counterspell Magic Path)
+    { id:'AB2R', x:120, y:100, label:'Spell Rejection',
+      desc:"When you successfully Counterspell, the caster must make a Constitution saving throw versus your Spell Save DC, or be unable to cast spells of that same level for the next round.", req:'AB1R' },
+    
+    { id:'AB3R', x:140, y:60, label:'Feedback Disruption',
+      desc:"When you successfully counter a spell with Counterspell the caster suffers disadvantage on concentration checks until the end of their next turn.", req:'AB2R' },
+    
+    { id:'AB4R', x:130, y:20, label:'Spell Lock',
+      desc:"When you successfully counter a spell, the target cannot cast another spell of the same level or lower for the next round. This can be used once per long rest.", req:'AB3R' },
+    
+    { id:'AB5R', x:120, y:-20, label:'Null Zone',
+      desc:"When you successfully Counterspell a spell of 3rd level or higher, create a 10 foot radius zone centered on the original caster where spell casting requires a Constitution saving throw versus your Spell Save DC or the spell fails. Lasts until the end of your next turn. Once per long rest.", req:'AB4R' },
+    
+    { id:'AB6R', x:100, y:-60, label:'Spell Severance',
+      desc:"When you Counterspell a spell that targets multiple creatures, you can choose to redirect the spell to target only the caster instead. The caster makes all saves and takes all effects as if they were the sole target. Once per short rest.", req:'AB5R' },
+    
+    { id:'AB7R', x:70, y:-100, label:'Arcane Nullification',
+      desc:"Once per long rest, when you successfully Counterspell, you can choose to permanently destroy the spell slot used to cast it until the caster completes a long rest. This only works on spell slots of 4th level or lower.", req:'AB6R' },
+
+    // SHIELD POINT (convergence)
+    { id:'AB8', x:0, y:-140, label:'Aegis Master',
+      desc:"You have mastered the art of magical protection. Once per long rest, you can cast Antimagic Field centered on yourself for 1 round without expending a spell slot. While active, you and all allies within the field gain immunity to all magical damage and effects.", reqs:['AB7L','AB7R'] }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Mage' && (window.subIndex?.Mage||0)===2) drawTree();
+</script>
+
+
+
+<!-- ===== Mage 3: Conjuration - Lightning Bolt ===== -->
+<script>
+TITLES.Mage[3] = "Conjuration";
+TREES.Mage[3] = {
+  nodes: [
+    // TOP OF BOLT (entry point)
+    { id:'CJ0', x:0, y:200, label:'Conjuration Mastery',
+      desc:"Cast Conjuration spells for 1 spell point less (minimum 1)." },
+
+    // FIRST ZIG (splits left and right)
+    { id:'CJ1L', x:-80, y:160, label:'Summoner\'s Call',
+      desc:"Your summoned creatures have a +1 to attack rolls and saving throws.", req:'CJ0' },
+    
+    { id:'CJ1R', x:80, y:160, label:'Blink Step',
+      desc:"You gain the ability to teleport up to 30 feet as a bonus action once per short rest.", req:'CJ0' },
+
+    // LEFT ZAG (summons path goes left)
+    { id:'CJ2L', x:-160, y:120, label:'Mystic Binding',
+      desc:"Once per short rest, you can summon a mystical weapon made of pure arcane force into your hand. The weapon must be one-handed and a weapon you have proficiency in. The weapon's damage becomes all force. This weapon lasts for 1 minute.", req:'CJ1L' },
+    
+    { id:'CJ3L', x:-200, y:80, label:'Spectral Servant',
+      desc:"Once per long rest, you can summon an invisible, incorporeal servant that follows your mental commands for 1 hour. It can manipulate objects, carry items up to 10 pounds, and has AC 12 and 15 hit points. It cannot attack but can perform simple tasks.", req:'CJ2L' },
+    
+    { id:'CJ4L', x:-120, y:40, label:'Twin Conjuration',
+      desc:"Once per long rest, you can summon two creatures at once, using the same spell or ability. Though, each has half the usual hit points.", req:'CJ3L' },
+    
+    { id:'CJ5L', x:-180, y:0, label:'Binding Circle',
+      desc:"Once per long rest, you can create a Binding Circle as an action (10ft square). Any conjured creature within the circle cannot move beyond it unless it succeeds on Wisdom saving throw. While inside the circle, your summoned creature has advantage on attack rolls and saving throws (not including the saving throw to escape the circle).", req:'CJ4L' },
+    
+    { id:'CJ6L', x:-100, y:-40, label:'Sigil of Subjugation',
+      desc:"Once per long rest, you can attempt to dominate a conjured or extraplanar creature (CR equal to or lower than half your level rounded up) for 1 minute. The target must succeed on a Charisma saving throw or fall under your control as if affected by Dominate Monster (no concentration required). If inside the Binding Circle, the creature has disadvantage on the save.", req:'CJ5L' },
+    
+    { id:'CJ7L', x:-140, y:-80, label:'Ascendant Conjuror',
+      desc:"Once per long rest you may conjure creatures as a bonus action, rather than an action, but still expending the spell points if needed. Your summoned creatures gain resistance to a damage type of your choice and a second choice once they reach half health.", req:'CJ6L' },
+
+    // RIGHT ZAG (portals path goes right)
+    { id:'CJ2R', x:160, y:120, label:'Rift Anchor',
+      desc:"Once per long rest, as a bonus action, you can mark your current location for the next 1d4 rounds. As a reaction, you may teleport back to that spot instantly, no matter the distance (as long as you're on the same plane of existence).", req:'CJ1R' },
+    
+    { id:'CJ3R', x:200, y:80, label:'Dimensional Step',
+      desc:"When you use Blink Step, you briefly phase into the Border Ethereal. Until the start of your next turn, you have resistance to all damage and can move through objects and creatures as if they were difficult terrain.", req:'CJ2R' },
+    
+    { id:'CJ4R', x:120, y:40, label:'Veil Stride',
+      desc:"Once per short rest, when using teleportation features, you can choose to leave behind a trail of arcane energy that lingers for 1 round. This allows a creature to follow your path instantly without expending movement or provoking attacks of opportunity. The creature must succeed on a Wisdom saving throw or exit the veil in a random location up to the maximum distance of the teleport used.", req:'CJ3R' },
+    
+    { id:'CJ5R', x:180, y:0, label:'Planar Sight',
+      desc:"You can see into the Border Ethereal and Feywild overlays within 60 feet. Once per long rest, you can cast Detect Magic and See Invisibility simultaneously without expending spell slots, lasting for 10 minutes.", req:'CJ4R' },
+    
+    { id:'CJ6R', x:100, y:-40, label:'Collapse the Veil',
+      desc:"Once per long rest, when you teleport using Rift Anchor you can cause a space rupture at the spot you teleport from. All creatures within 10 feet of the rupture must make a Constitution saving throw or take 4d10 force damage and be pulled 10 feet into the collapsed space (half damage on a success). This rupture destabilizes reality temporarily- teleportation within 30 feet is impossible for 1 minute.", req:'CJ5R' },
+    
+    { id:'CJ7R', x:140, y:-80, label:'Veilgate',
+      desc:"Once per long rest, as an action, you open a planar rift within 60 feet of you in a line 10 foot long. Creatures can teleport into or out of the rift as a bonus action within a range of 60ft around it. Creatures who enter or start their turn in the rift's space must succeed a Wisdom saving throw or be banished until the start of their next turn. This rift lasts for 1d6 rounds.", req:'CJ6R' },
+
+    // FINAL CONVERGENCE (bolt tip)
+    { id:'CJ8', x:0, y:-120, label:'Master of the Veil',
+      desc:"You have become one with the spaces between worlds. Once per long rest, you can cast Plane Shift without expending a spell slot, and can bring up to 8 willing creatures with you. Additionally, you can maintain concentration on two conjuration spells simultaneously, though if you lose concentration, both spells end.", reqs:['CJ7L','CJ7R'] }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Mage' && (window.subIndex?.Mage||0)===3) drawTree();
+</script>
+
+
+
+<!-- ===== Mage 5: Necromancy - Snake Constellation ===== -->
+<script>
+TITLES.Mage[5] = "Necromancy";
+TREES.Mage[5] = {
+  nodes: [
+    // SNAKE HEAD (bright star)
+    { id:"NC0", x:-180, y:150, label:"Death's Apprentice",
+      desc:"You gain resistance to necrotic damage and advantage on saving throws against being frightened by undead. You learn one necromancy cantrip of your choice." },
+
+    // SNAKE'S EYES 
+    { id:"NC1", x:-160, y:120, label:"Speak with Dead",
+      desc:"You can cast Speak with Dead once per long rest without expending a spell slot. When you do, you can ask one additional question.", req:"NC0" },
+    
+    { id:"NC2", x:-140, y:110, label:"Life Drain", 
+      desc:"Once per short rest, when you deal necrotic damage with a spell, you regain hit points equal to half the damage dealt (maximum equal to your spell level).", req:"NC1" },
+
+    // NECK FLOWING DOWN AND RIGHT
+    { id:"NC3", x:-110, y:80, label:"Undead Thrall",
+      desc:"You can cast Animate Dead once per long rest without expending a spell slot. The undead created has additional hit points equal to your Intelligence modifier.", req:"NC2" },
+
+    { id:"NC4", x:-70, y:60, label:"Death's Touch",
+      desc:"Once per turn when you touch a living creature, you can deal 1d6 necrotic damage and reduce their maximum hit points by the same amount until they complete a long rest. Uses per long rest equal to Intelligence modifier.", req:"NC3" },
+
+    // BODY CURVES
+    { id:"NC5", x:-30, y:40, label:"Vampiric Aura",
+      desc:"When you cast a necromancy spell of 1st level or higher, you and allies within 10 feet regain hit points equal to the spell's level.", req:"NC4" },
+
+    { id:"NC6", x:20, y:30, label:"Soul Harvest",
+      desc:"When a creature dies within 30 feet of you, you gain 1 Soul Token (maximum equal to proficiency bonus). Spend 1 token to add 1d6 necrotic damage to a necromancy spell or regain 1 spell point.", req:"NC5" },
+
+    { id:"NC7", x:70, y:25, label:"Necrotic Mastery",
+      desc:"Your necromancy spells ignore resistance to necrotic damage. Creatures with immunity instead have resistance.", req:"NC6" },
+
+    // SNAKE CURVES DOWN
+    { id:"NC8", x:110, y:10, label:"Corpse Explosion",
+      desc:"Once per long rest, you can cause a corpse within 60 feet to explode. All creatures within 15 feet must make a Dexterity saving throw or take 4d6 necrotic damage.", req:"NC7" },
+
+    { id:"NC9", x:140, y:-20, label:"Death's Embrace",
+      desc:"Once per long rest, when you would drop to 0 hit points, instead drop to 1 and all enemies within 20 feet take 3d8 necrotic damage (Constitution save for half).", req:"NC8" },
+
+    // CURVES BACK LEFT
+    { id:"NC10", x:160, y:-60, label:"Army of Darkness",
+      desc:"When you cast Animate Dead, you can animate one additional corpse without expending an additional spell slot. Your undead gain +2 to attack and damage rolls.", req:"NC9" },
+
+    { id:"NC11", x:130, y:-100, label:"Soul Bind",
+      desc:"Once per long rest, you can bind the soul of a creature that died within the last minute. The soul answers three questions truthfully and cannot lie or refuse to answer.", req:"NC10" },
+
+    // SNAKE BODY CONTINUES
+    { id:"NC12", x:80, y:-120, label:"Bone Prison",
+      desc:"Once per long rest, you can entrap a Large or smaller creature in a cage of bones. The creature is restrained and takes 2d6 necrotic damage at the start of each turn. The cage has AC 15 and 25 hit points.", req:"NC11" },
+
+    { id:"NC13", x:20, y:-140, label:"Wither",
+      desc:"Once per short rest, you can age a creature within 60 feet. They must make a Constitution saving throw or have their Strength, Dexterity, and Constitution scores reduced by 1d4 each for 24 hours.", req:"NC12" },
+
+    // TAIL CURVES UP
+    { id:"NC14", x:-40, y:-130, label:"Death Coil",
+      desc:"Once per long rest, you can fire a coil of dark energy at a creature within 120 feet. If the target is living, they take 6d8 necrotic damage (Constitution save for half). If undead, they regain that many hit points instead.", req:"NC13" },
+
+    { id:"NC15", x:-90, y:-100, label:"Lich's Phylactery",
+      desc:"You create a phylactery. If you die while it exists, you return to life after 1d4 days at the phylactery's location with 1 hit point. The phylactery can be destroyed (AC 17, 25 hit points, immunity to psychic and necrotic).", req:"NC14" },
+
+    // TAIL TIP (distant star)
+    { id:"NC16", x:-120, y:-70, label:"Master of Death",
+      desc:"You have transcended mortality. Once per long rest, you can cast Circle of Death without expending a spell slot. Additionally, you no longer age, are immune to disease and poison, and when you die, you automatically cast Revivify on yourself (once per week).", req:"NC15" }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Mage' && (window.subIndex?.Mage||0)===5) drawTree();
+</script>
+
+
+<!-- ===== Mage 4: Enchantment - Spiral Pattern ===== -->
+<script>
+TITLES.Mage[4] = "Enchantment";
+TREES.Mage[4] = {
+  nodes: [
+    // OUTER SPIRAL START (bottom left)
+    { id:"EN0", x:-120, y:140, label:"Enchantment Adept",
+      desc:"Your enchantment spells cost 1 less spell point (minimum 1)." },
+
+    // SPIRALING INWARD (counter-clockwise)
+    { id:"EN1", x:-80, y:100, label:"Compelling Words",
+      desc:"When you cast an enchantment spell, the target has disadvantage on their first saving throw.", req:"EN0" },
+    
+    { id:"EN2", x:-100, y:50, label:"Extended Charms",
+      desc:"The duration of your enchantment spells is doubled.", req:"EN1" },
+    
+    { id:"EN3", x:-140, y:10, label:"Subtle Enchantment",
+      desc:"Targets of your enchantment spells do not realize they were magically influenced when the effect ends.", req:"EN2" },
+    
+    { id:"EN4", x:-130, y:-40, label:"Mass Suggestion",
+      desc:"When you cast an enchantment spell that targets one creature, you can target one additional creature within range.", req:"EN3" },
+    
+    { id:"EN5", x:-80, y:-80, label:"Enchanted Resistance",
+      desc:"You have advantage on saving throws against enchantment spells.", req:"EN4" },
+    
+    { id:"EN6", x:-30, y:-100, label:"Instinctive Charm",
+      desc:"When a creature targets you with an attack, you can use your reaction to force them to make a Wisdom saving throw. On failure, they must choose a different target.", req:"EN5" },
+    
+    { id:"EN7", x:20, y:-90, label:"Split Enchantment",
+      desc:"When you cast an enchantment spell of 1st level or higher that targets only one creature, you can have it target two creatures instead.", req:"EN6" },
+    
+    { id:"EN8", x:60, y:-60, label:"Charm Immunity",
+      desc:"You are immune to being charmed.", req:"EN7" },
+    
+    { id:"EN9", x:80, y:-20, label:"Befuddling Aura",
+      desc:"Creatures that start their turn within 10 feet of you have disadvantage on Wisdom saving throws against your enchantment spells.", req:"EN8" },
+    
+    { id:"EN10", x:70, y:20, label:"Lingering Influence",
+      desc:"When your enchantment spell ends, the target remains dazed for 1 round (disadvantage on attack rolls).", req:"EN9" },
+    
+    { id:"EN11", x:40, y:50, label:"Heightened Charm",
+      desc:"The saving throw DC for your enchantment spells increases by 1.", req:"EN10" },
+    
+    { id:"EN12", x:0, y:60, label:"Overwhelming Mind",
+      desc:"Enchantment spells you cast ignore resistance to being charmed. Creatures with immunity have resistance instead.", req:"EN11" },
+    
+    // CENTER (final mastery)
+    { id:"EN13", x:0, y:0, label:"Master Enchanter",
+      desc:"You have mastered mental manipulation. Once per long rest, when you cast an enchantment spell, you can make it permanent until dispelled (DM discretion for appropriate spells).", req:"EN12" }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Mage' && (window.subIndex?.Mage||0)===4) drawTree();
+</script>
+
+
+<!-- ===== Mage 7: Transmutation - Alchemical Triangle ===== -->
+<script>
+TITLES.Mage[7] = "Transmutation";
+TREES.Mage[7] = {
+  nodes: [
+    // BOTTOM POINT (entry)
+    { id:"TR0", x:0, y:140, label:"Transmutation Adept",
+      desc:"Your transmutation spells cost 1 less spell point (minimum 1)." },
+
+    // LEFT EDGE (going up)
+    { id:"TR1", x:-70, y:100, label:"Alter Self",
+      desc:"You can cast Alter Self once per long rest without expending a spell slot. The duration is doubled.", req:"TR0" },
+    
+    { id:"TR2", x:-120, y:50, label:"Stone Shape",
+      desc:"Your transmutation spells that affect objects or materials last twice as long.", req:"TR1" },
+    
+    { id:"TR3", x:-150, y:0, label:"Polymorph Mastery",
+      desc:"When you cast a transmutation spell that changes a creature's form, they gain temporary hit points equal to twice your Intelligence modifier.", req:"TR2" },
+    
+    { id:"TR4", x:-160, y:-50, label:"Elemental Shift",
+      desc:"Once per short rest, you can change the damage type of a spell you cast to acid, cold, fire, lightning, or thunder.", req:"TR3" },
+    
+    // TOP LEFT POINT
+    { id:"TR5", x:-140, y:-100, label:"Transmuter's Stone",
+      desc:"You can create a magical stone that grants its bearer resistance to one damage type of your choice. You can change the resistance type during a short rest.", req:"TR4" },
+
+    // TOP EDGE (going right)
+    { id:"TR6", x:-70, y:-120, label:"Shapechanger",
+      desc:"Your polymorph and shapechanging effects can't be dispelled by effects of a lower level than the spell you cast.", req:"TR5" },
+    
+    { id:"TR7", x:0, y:-130, label:"Molecular Mastery",
+      desc:"Once per long rest, you can change one non-magical object into another non-magical object of the same size permanently.", req:"TR6" },
+    
+    { id:"TR8", x:70, y:-120, label:"Rapid Transformation",
+      desc:"You can cast transmutation spells as a bonus action if they normally take 1 action to cast. Once per short rest.", req:"TR7" },
+
+    // TOP RIGHT POINT
+    { id:"TR9", x:140, y:-100, label:"Perfect Form",
+      desc:"When you or an ally is polymorphed by your magic, they can add your Intelligence modifier to their attack rolls and saving throws.", req:"TR8" },
+
+    // RIGHT EDGE (going down)
+    { id:"TR10", x:160, y:-50, label:"Spell Sculpting",
+      desc:"Your transmutation spells that target objects can affect objects up to two sizes larger than normal.", req:"TR9" },
+    
+    { id:"TR11", x:150, y:0, label:"Temporal Flux",
+      desc:"Once per long rest, you can cast Haste on yourself without expending a spell slot or requiring concentration.", req:"TR10" },
+    
+    { id:"TR12", x:120, y:50, label:"Matter Manipulation",
+      desc:"Your transmutation spells ignore resistance to their effects. Creatures or objects with immunity instead have resistance.", req:"TR11" },
+    
+    { id:"TR13", x:70, y:100, label:"True Polymorph",
+      desc:"Once per long rest, you can extend the duration of a transmutation spell you cast by 10 minutes without requiring additional concentration.", req:"TR12" },
+
+    // CENTER (convergence)
+    { id:"TR14", x:0, y:0, label:"Master Transmuter",
+      desc:"You have mastered the alteration of reality. Once per long rest, you can consume your Transmuter's Stone to produce one of the following effects: restore 2d4+2 to a creature's ability scores, remove all curses and diseases from a creature, transform a nonmagical object into another object of equal or lesser value permanently, or restore a dead creature to life if they died within the last hour.", reqs:["TR5","TR9"] }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Mage' && (window.subIndex?.Mage||0)===7) drawTree();
+</script>
+
+
+
+<!-- ===== Mage Secret 8: Shapeshifter - Transformation Cycle (+ Lock Gate) ===== -->
+<script>
+(function(){
+TITLES.Mage[8] = "Shapeshifter";
+  TREES.Mage[8] = {
+    nodes: [
+      // CENTER - HUMAN FORM
+      { id:"SS0", x:0, y:0, label:"Shapeshifter",
+        desc:"You can shapeshift into primal beast forms. You remain Medium size, retain mental stats but gain beast physical capabilities and attacks. Transformations last 10 minutes, usable once per long rest." },
+
+      // SPIDER PATH (top-left, 6 perks)
+      { id:"SSS1", x:-120, y:-60, label:"Spider Form",
+        desc:"Transform into a giant spider (Medium). Gain +20 temp HP, spider climb 30ft, web sense 60ft, bite attack (2d6 piercing + 2d6 poison, CON save half). Short rest usage.", req:"SS0" },
+      
+      { id:"SSS2", x:-150, y:-95, label:"Web",
+        desc:"Spider ability: Cast Web spell (20ft radius) without slot. Recharges on short rest.", req:"SSS1" },
+      
+      { id:"SSS3", x:-165, y:-135, label:"Poison Spit",
+        desc:"Spider ability: Ranged attack 30ft, 3d6 poison damage, CON save or poisoned 1 minute. Recharges on short rest.", req:"SSS2" },
+      
+      { id:"SSS4", x:-150, y:-175, label:"Overwhelm",
+        desc:"Spider ability: Attack prone target, on hit they're cocooned in webbing (restrained, blinded). STR/DEX check DC 15 to escape. Once per transformation.", req:"SSS3" },
+      
+      { id:"SSS5", x:-120, y:-210, label:"Improved Spider",
+        desc:"Spider temp HP +35, bite poison 3d6, web DC increases by 2.", req:"SSS4" },
+      
+      { id:"SSS6", x:-80, y:-240, label:"Master Spider",
+        desc:"Spider poison paralyzes on failed save (1 round). Web can be cast twice per transformation.", req:"SSS5" },
+
+      // BEAR PATH (top-center, 6 perks)
+      { id:"SSB1", x:0, y:-60, label:"Bear Form",
+        desc:"Transform into a bear. Gain +30 temp HP, +2 AC, bite (2d6+STR), two claws (1d8+STR). Short rest usage.", req:"SS0" },
+      
+      { id:"SSB2", x:0, y:-95, label:"Slam",
+        desc:"Bear ability: Melee attack, on hit deal +1d8 damage and push target 10ft. Recharges on short rest.", req:"SSB1" },
+      
+      { id:"SSB3", x:0, y:-135, label:"Overwhelm",
+        desc:"Bear ability: Attack, on hit target makes STR save (DC 8+prof+STR) or knocked prone and stunned until end of their next turn. Recharges on short rest.", req:"SSB2" },
+      
+      { id:"SSB4", x:0, y:-175, label:"Rage",
+        desc:"Bear ability: Bonus action, gain +4 to melee damage rolls for 1 minute. Once per transformation.", req:"SSB3" },
+      
+      { id:"SSB5", x:0, y:-210, label:"Improved Bear",
+        desc:"Bear temp HP +45, resistance to B/P/S damage, bite 3d6+STR.", req:"SSB4" },
+      
+      { id:"SSB6", x:0, y:-240, label:"Master Bear",
+        desc:"Bear Overwhelm also deals +2d8 damage. Rage grants advantage on attacks.", req:"SSB5" },
+
+      // CAT PATH (top-right, 6 perks)
+      { id:"SSC1", x:120, y:-60, label:"Cat Form",
+        desc:"Transform into a large cat. Gain +20 temp HP, +3 AC, darkvision 60ft, advantage on Stealth, two claws (1d8+DEX), pounce. Short rest usage.", req:"SS0" },
+      
+      { id:"SSC2", x:150, y:-95, label:"Rake",
+        desc:"Cat ability: When both claws hit prone target, make two additional claw attacks as bonus. Recharges on short rest.", req:"SSC1" },
+      
+      { id:"SSC3", x:165, y:-135, label:"Overwhelm",
+        desc:"Cat ability: Pounce 20ft then attack, on hit target makes STR save or knocked prone. Recharges on short rest.", req:"SSC2" },
+      
+      { id:"SSC4", x:150, y:-175, label:"Screech",
+        desc:"Cat ability: 15ft cone, creatures make CON save or 3d8 psychic and deafened 1 minute. Once per transformation.", req:"SSC3" },
+      
+      { id:"SSC5", x:120, y:-210, label:"Improved Cat",
+        desc:"Cat invisible in dim light/darkness until attack. Claws 2d6+DEX each.", req:"SSC4" },
+      
+      { id:"SSC6", x:80, y:-240, label:"Master Cat",
+        desc:"Cat pounce range 40ft. Rake can be used on any prone target (not just both claws hit).", req:"SSC5" },
+
+      // SWARM PATH (right, 6 perks)
+      { id:"SFSW1", x:140, y:20, label:"Swarm Form",
+        desc:"Transform into a swarm (rats, insects, bats, ravens - your choice). Fly or walk 40ft, move through small spaces, resistance to physical, vulnerability to AoE. Creatures in your space: 2d4 damage/turn. Short rest usage.", req:"SS0" },
+      
+      { id:"SFSW2", x:170, y:50, label:"Dive Bomb",
+        desc:"Swarm ability: Move 30ft+ then engulf target, they make DEX save or 3d6 damage and blinded until start of your next turn. Recharges on short rest.", req:"SFSW1" },
+      
+      { id:"SFSW3", x:185, y:85, label:"Overwhelm",
+        desc:"Swarm ability: Engulf Medium/smaller creature. DEX save or blinded and take 3d6 damage (repeat save each turn). Once per transformation.", req:"SFSW2" },
+      
+      { id:"SFSW4", x:180, y:125, label:"Swarm Teleport",
+        desc:"Swarm ability: Reaction, when you take damage teleport 30ft to unoccupied space you can see. Recharges on short rest.", req:"SFSW3" },
+      
+      { id:"SFSW5", x:160, y:160, label:"Improved Swarm",
+        desc:"Swarm damage 3d4 per turn, movement speed 60ft (fly or walk).", req:"SFSW4" },
+      
+      { id:"SFSW6", x:130, y:190, label:"Master Swarm",
+        desc:"When transforming back: 15ft radius, DEX save or 5d8 damage, blinded, prone. Swarm Teleport usable twice per short rest.", req:"SFSW5" },
+
+      // AQUATIC PATH (bottom-right, 6 perks) - repositioned away from swarm
+      { id:"SSA1", x:80, y:120, label:"Aquatic Form",
+        desc:"Transform into shark/crocodile. Gain +25 temp HP, swim 50ft, water breathing, bite (3d6+STR). Short rest usage.", req:"SS0" },
+      
+      { id:"SSA2", x:70, y:160, label:"Blood Frenzy",
+        desc:"Aquatic ability: Against bloodied targets (below half HP), gain advantage on attacks and +1d8 bite damage. Passive.", req:"SSA1" },
+      
+      { id:"SSA3", x:50, y:195, label:"Overwhelm",
+        desc:"Aquatic ability: Bite attack, on hit target makes STR save or grappled and dragged 15ft in any direction. Recharges on short rest.", req:"SSA2" },
+      
+      { id:"SSA4", x:20, y:220, label:"Death Roll",
+        desc:"Aquatic ability: While grappling, deal 4d8 damage automatically at start of your turn and target is prone when released. Passive.", req:"SSA3" },
+      
+      { id:"SSA5", x:-15, y:240, label:"Improved Aquatic",
+        desc:"Aquatic temp HP +40, bite 4d6+STR, blindsight 30ft underwater.", req:"SSA4" },
+      
+      { id:"SSA6", x:-50, y:250, label:"Master Aquatic",
+        desc:"Blood Frenzy triggers at 75% HP. Death Roll damage 6d8.", req:"SSA5" },
+
+      // FLYING PATH (left, 6 perks)
+      { id:"SSE1", x:-140, y:20, label:"Flying Form",
+        desc:"Transform into eagle/hawk. Gain +15 temp HP, fly 60ft, advantage on Perception, two talons (1d8+DEX). Short rest usage.", req:"SS0" },
+      
+      { id:"SSE2", x:-170, y:50, label:"Dive",
+        desc:"Flying ability: Fly 30ft+ straight at target, attack deals +3d6 damage. Medium/smaller makes STR save or prone. Usable at-will.", req:"SSE1" },
+      
+      { id:"SSE3", x:-185, y:85, label:"Overwhelm",
+        desc:"Flying ability: Dive attack on prone target, they make DEX save or grappled and lifted 20ft up. Recharges on short rest.", req:"SSE2" },
+      
+      { id:"SSE4", x:-180, y:125, label:"Screech",
+        desc:"Flying ability: 30ft cone, WIS save or frightened 1 minute (repeat save each turn). Once per transformation.", req:"SSE3" },
+      
+      { id:"SSE5", x:-160, y:160, label:"Improved Flying",
+        desc:"Flying speed 80ft, talons 2d6+DEX each, keen sight (can't be surprised).", req:"SSE4" },
+      
+      { id:"SSE6", x:-130, y:190, label:"Master Flying",
+        desc:"Dive can be used as bonus action. Grappled targets take 2d6 per turn from talons.", req:"SSE5" },
+
+      // CONVERGENCE
+      { id:"SS_MASTER", x:0, y:-280, label:"Master Shapeshifter",
+        desc:"Transform as bonus action. Can transform twice per short rest into any learned form. Maintain concentration while shifted. Speak in beast form. Attacks count as magical. Once per long rest: hybrid form (combine two beasts, 1 minute).", reqs:["SSS6","SSB6","SSC6"] }
+    ]
+  };
+
+  // --- Lock overlay gate ---
+  const KEY = 'unlock_shapeshifter';
+  const PASS = 'feral';
+
+  function onSS(){ try{ return current === 'Mage' && ((subIndex?.Mage ?? 0) === 8); }catch(_){ return false; } }
+
+  function buildGate(){
+    let ov = document.getElementById('shapeshifterlock');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'shapeshifterlock';
+    Object.assign(ov.style, {
+      position:'absolute',
+      top:'15%', left:'15%', width:'70%', height:'70%',
+      zIndex:'25',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(0,0,0,.35)'
+    });
+
+    const frost = document.createElement('video');
+    frost.src = './Shield_Magic_Frost_1_Loop_COLOR_4_1200x1200.webm';
+    frost.autoplay = true; frost.loop = true; frost.muted = true; frost.playsInline = true;
+    Object.assign(frost.style, { position:'absolute', width:'90vmin', height:'90vmin', objectFit:'cover', opacity:'0.9' });
+
+    const label = document.createElement('div');
+    label.textContent = 'LOCKED';
+    Object.assign(label.style, {
+      position:'absolute', transform:'rotate(-15deg)',
+      fontFamily:"'Cinzel Decorative', serif", fontWeight:'700',
+      fontSize:'min(8vmin, 72px)', letterSpacing:'0.2em',
+      color:'#c7e6ff', textShadow:'0 0 18px #9fd3ff, 0 0 36px rgba(159,211,255,.55)'
+    });
+
+    ov.append(frost, label);
+    ov.addEventListener('click', ()=>{
+      const input = (prompt('Enter the wild word:')||'').trim().toLowerCase();
+      if (input !== PASS) return;
+
+      const burst = ['./Impact_Hit_2_Flash_1_COLOR_3_1200x1200.webm','./Explosion_Particles_1_Flash_Shattert_COLOR_1_1200x1200.webm'];
+      let pending = burst.length;
+      burst.forEach((src, i)=>{
+        const v = document.createElement('video');
+        v.src = src; v.muted = true; v.playsInline = true;
+        Object.assign(v.style, { position:'absolute', width:i? '98vmin':'88vmin', height:i? '98vmin':'88vmin', objectFit:'contain', display:'none' });
+        ov.appendChild(v);
+        setTimeout(()=>{
+          v.style.display='block';
+          const done = ()=>{ v.remove(); if(--pending<=0) fade(); };
+          v.addEventListener('ended', done, {once:true});
+          v.play().catch(()=> setTimeout(done, 2000));
+          setTimeout(done, 3500);
+        }, i? 200:0);
+      });
+
+      function fade(){
+        ov.style.transition='opacity 800ms ease';
+        ov.style.opacity='0';
+        setTimeout(()=>{ ov.remove(); try{ localStorage.setItem(KEY,'1'); }catch(_){} }, 820);
+      }
+    });
+
+    document.body.appendChild(ov);
+    return ov;
+  }
+
+  function maybeGate(){
+    let unlocked = false;
+    try{ unlocked = localStorage.getItem(KEY) === '1'; }catch(_){}
+    const gate = document.getElementById('shapeshifterlock');
+    if (onSS()){
+      if (!unlocked && !gate) buildGate();
+      if (unlocked && gate) gate.remove();
+    } else {
+      gate?.remove();
+    }
+  }
+
+  if (!window.__shapeshifterGateHooked && typeof window.drawTree === 'function'){
+    const _draw = window.drawTree;
+    window.drawTree = function(){ const r=_draw.apply(this, arguments); try{ maybeGate(); }catch(_){} return r; };
+    window.__shapeshifterGateHooked = true;
+  }
+  window.addEventListener('load', maybeGate);
+  setTimeout(maybeGate, 120);
+
+  window.shapeshifter = {
+    lock(){ try{ localStorage.setItem(KEY,'0'); }catch(_){} if (onSS()) buildGate(); },
+    unlock(){ try{ localStorage.setItem(KEY,'1'); }catch(_){} document.getElementById('shapeshifterlock')?.remove(); }
+  };
+})();
+</script>
+
+<!-- ===== Mage 6: Illusion - Eye Shape ===== -->
+<script>
+TITLES.Mage[6] = "Illusion";
+TREES.Mage[6] = {
+  nodes: [
+    // PUPIL (center)
+    { id:"IL0", x:0, y:0, label:"Minor Illusions",
+      desc:"Learn Minor Illusion cantrip if you don't know it. Illusion spells cost 1 less spell point (minimum 1)." },
+
+    // IRIS (ring around pupil)
+    { id:"IL1", x:-35, y:0, label:"Silent Image",
+      desc:"You can cast Silent Image once per long rest without expending a spell slot. The image can move up to 30 feet from its starting location.", req:"IL0" },
+    
+    { id:"IL2", x:35, y:0, label:"Disguise Self",
+      desc:"You can cast Disguise Self at will without expending a spell slot.", req:"IL0" },
+    
+    { id:"IL3", x:0, y:-35, label:"Phantom Sound",
+      desc:"You can create audible illusions at will. Creatures have disadvantage on Investigation checks to discern them as illusions.", req:"IL0" },
+    
+    { id:"IL4", x:0, y:35, label:"Mirror Image",
+      desc:"You can cast Mirror Image once per short rest without expending a spell slot. When you do, create one additional duplicate.", req:"IL0" },
+
+    // EYE SHAPE - LEFT SIDE (white of eye)
+    { id:"IL5L", x:-120, y:0, label:"Phantasmal Force",
+      desc:"You learn Phantasmal Force. When you cast it, the target has disadvantage on their first Investigation check.", req:"IL1" },
+    
+    { id:"IL6L", x:-160, y:-25, label:"Invisibility",
+      desc:"You can cast Invisibility once per long rest without expending a spell slot. When you do, it lasts for an additional minute.", req:"IL5L" },
+    
+    { id:"IL7L", x:-180, y:-50, label:"Blur",
+      desc:"You can cast Blur once per short rest without expending a spell slot as a bonus action.", req:"IL6L" },
+
+    // EYE SHAPE - RIGHT SIDE (white of eye)
+    { id:"IL5R", x:120, y:0, label:"Hypnotic Pattern",
+      desc:"You learn Hypnotic Pattern. When you cast it, increase the radius by 5 feet.", req:"IL2" },
+    
+    { id:"IL6R", x:160, y:-25, label:"Major Image",
+      desc:"You can cast Major Image once per long rest without expending a spell slot. The illusion includes sound, smell, and temperature.", req:"IL5R" },
+    
+    { id:"IL7R", x:180, y:-50, label:"Fear",
+      desc:"You can cast Fear once per long rest without expending a spell slot. Creatures that fail see their worst nightmare.", req:"IL6R" },
+
+    // TOP EYELID (upper curve)
+    { id:"IL8T1", x:-140, y:-60, label:"Mislead",
+      desc:"You can cast Mislead once per long rest without expending a spell slot. Your duplicate can speak and interact with objects.", req:"IL7L" },
+    
+    { id:"IL8T2", x:-100, y:-75, label:"Illusory Terrain",
+      desc:"You learn Hallucinatory Terrain. When you cast it, the area appears different to each creature based on their fears or desires.", req:"IL8T1" },
+    
+    { id:"IL8T3", x:-50, y:-85, label:"Greater Invisibility",
+      desc:"You can cast Greater Invisibility once per long rest without expending a spell slot.", req:"IL8T2" },
+    
+    { id:"IL8T4", x:0, y:-90, label:"Phantasmal Killer",
+      desc:"You learn Phantasmal Killer. When you cast it, the nightmare appears real to all who can see the target.", req:"IL8T3" },
+    
+    { id:"IL8T5", x:50, y:-85, label:"Seeming",
+      desc:"You can cast Seeming once per long rest without expending a spell slot. You can affect twice as many creatures.", req:"IL8T4" },
+    
+    { id:"IL8T6", x:100, y:-75, label:"Modify Memory",
+      desc:"You learn Modify Memory. When you cast it, you can alter up to 10 minutes of memories instead of 1.", req:"IL8T5" },
+    
+    { id:"IL8T7", x:140, y:-60, label:"Dream",
+      desc:"You can cast Dream once per long rest without expending a spell slot. You can shape the dream environment.", req:"IL8T6" },
+
+    // BOTTOM EYELID (lower curve)
+    { id:"IL9B1", x:-140, y:60, label:"Mirage Arcane",
+      desc:"Once per long rest, you can make a 1-mile cube appear as a different type of terrain. The illusion is tangible.", req:"IL5L" },
+    
+    { id:"IL9B2", x:-100, y:75, label:"Programmed Illusion",
+      desc:"You can create illusions that trigger on specific conditions. You can have up to 3 active programmed illusions.", req:"IL9B1" },
+    
+    { id:"IL9B3", x:-50, y:85, label:"Project Image",
+      desc:"Once per long rest, you can cast Project Image without expending a spell slot. The image can interact physically.", req:"IL9B2" },
+    
+    { id:"IL9B4", x:0, y:90, label:"Simulacrum",
+      desc:"Once per week, you can create a simulacrum of yourself that lasts until destroyed. It has half your hit points.", req:"IL9B3" },
+    
+    { id:"IL9B5", x:50, y:85, label:"Illusory Dragon",
+      desc:"Once per long rest, you can create an illusory dragon that deals real damage and can grapple creatures.", req:"IL9B4" },
+    
+    { id:"IL9B6", x:100, y:75, label:"Mental Prison",
+      desc:"You learn Mental Prison. When you cast it, the target is also blinded and deafened to the real world.", req:"IL9B5" },
+    
+    { id:"IL9B7", x:140, y:60, label:"Weird",
+      desc:"Once per long rest, you can cast Weird without expending a spell slot. The nightmares persist for 1 additional round.", req:"IL9B6" },
+
+    // OUTER CORNERS (eye corners)
+    { id:"IL10L", x:-200, y:0, label:"True Seeing Pierce",
+      desc:"You have advantage on checks to see through illusions. Once per long rest, you can cast True Seeing on yourself.", req:"IL8T1" },
+    
+    { id:"IL10R", x:200, y:0, label:"Reality Blur",
+      desc:"Your illusions are so convincing that they partially become real. Illusion spells you cast deal half damage even to creatures that disbelieve them.", req:"IL8T7" },
+
+    // CONVERGENCE - THE ALL-SEEING EYE
+    { id:"IL11", x:0, y:-120, label:"Master Illusionist",
+      desc:"You have mastered the art of bending reality. Once per long rest, you can make any illusion you cast become completely real for up to 1 minute. During this time, it functions as if it were the actual thing.", reqs:["IL10L","IL10R"] }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Mage' && (window.subIndex?.Mage||0)===6) drawTree();
+</script>
+
+
+<!-- ===== Mage 6: Illusion - Eye Shape ===== -->
+<script>
+TITLES.Mage[6] = "Illusion";
+TREES.Mage[6] = {
+  nodes: [
+    // LEFT POINT (9 o'clock - start)
+    { id:"IL1", x:-220, y:0, label:"Illusion Adept",
+      desc:"Your illusion spells cost 1 less spell point (minimum 1)." },
+    
+    // GOING UP (10-11 o'clock)
+    { id:"IL2", x:-170, y:-60, label:"Enhanced Illusions",
+      desc:"Your illusion spells last 25% longer.", req:"IL1" },
+    
+    { id:"IL3", x:-110, y:-95, label:"Silent Casting",
+      desc:"You can cast illusion spells without verbal components.", req:"IL2" },
+    
+    // TOP (12 o'clock)
+    { id:"IL4", x:-40, y:-110, label:"Multi-Sensory",
+      desc:"Your visual illusions automatically include sound. Creatures have disadvantage on Investigation checks.", req:"IL3" },
+    
+    { id:"IL5", x:40, y:-110, label:"Tangible Illusions",
+      desc:"Your illusions can be touched and feel real. They still deal no damage.", req:"IL4" },
+    
+    // GOING DOWN-RIGHT (1-2 o'clock)
+    { id:"IL6", x:110, y:-95, label:"Persistent Phantoms",
+      desc:"When your illusion spell ends, afterimages remain for 1 round.", req:"IL5" },
+    
+    { id:"IL7", x:170, y:-60, label:"Reactive Illusions",
+      desc:"Your illusions can react to creatures' actions automatically without your concentration.", req:"IL6" },
+    
+    // RIGHT POINT (3 o'clock)
+    { id:"IL8", x:220, y:0, label:"Dual Casting",
+      desc:"You can concentrate on two illusion spells simultaneously.", req:"IL7" },
+    
+    // GOING DOWN (4-5 o'clock)
+    { id:"IL9", x:170, y:60, label:"Illusory Scale",
+      desc:"You can change the size of your illusions from Tiny to Gargantuan without additional cost.", req:"IL8" },
+    
+    { id:"IL10", x:110, y:95, label:"Illusory Movement",
+      desc:"Your illusions can move up to 60 feet from their origin point.", req:"IL9" },
+    
+    // BOTTOM (6 o'clock)
+    { id:"IL11", x:40, y:110, label:"Extended Range",
+      desc:"The range of your illusion spells is doubled.", req:"IL10" },
+    
+    { id:"IL12", x:-40, y:110, label:"Illusory Amplification",
+      desc:"The area of effect for your illusion spells is increased by 50%.", req:"IL11" },
+    
+// GOING UP-LEFT (7-8 o'clock)
+    { id:"IL13", x:-110, y:95, label:"Subtle Illusions",
+      desc:"Creatures within your illusions do not automatically know they're inside an illusion.", req:"IL12" },
+    
+    { id:"IL14", x:-170, y:60, label:"Overwhelming Senses",
+      desc:"Creatures that fail to disbelieve your illusions take 1d6 psychic damage.", req:"IL13" },
+    
+    // FINAL OUTER PERK (back near start but spaced for labels)
+    { id:"IL15", x:-220, y:50, label:"Perfect Illusions",
+      desc:"Your illusion spells cannot be detected as magical by Detect Magic or similar effects.", req:"IL14" },
+    
+    // PUPIL CONNECTION (from Perfect Illusions to center)
+    { id:"ILP1", x:0, y:0, label:"Master Illusionist",
+      desc:"You have mastered the art of illusion. All illusion spells you cast have their DC increased by 2 and creatures have disadvantage on Investigation checks to disbelieve them.", req:"IL15" }
+  ]
+};
+
+if (typeof drawTree==='function' && window.current==='Mage' && (window.subIndex?.Mage||0)===6) drawTree();
+</script>
+
+
+
+<!-- ===== Mage 4: Destruction (Palm) ===== -->
+<script>
+  // Palm base
+  TITLES.Mage[1] = "Destruction ";
+  TREES.Mage[1] = {
+    nodes: [
+      /* PALM (base) */
+      { id:'D0', x:0, y:170, label:'Elemental Fury',
+        desc:"Choose an element to specialise in: Cold, Lightning, Fire, Acid, Thunder. Your damage-dealing spells gain +2 damage of this type. Once per short rest, you can reroll all the damage dice of that spell, but must keep the second value." },
+
+      /* LITTLE FINGER — ACID (shortest, far left) */
+      { id:'DA1', x:-190, y:110, label:'Corrosive Touch',
+        desc:"Acid spells and effects cast on others deal an additional 20% damage.", req:'D0' },
+      { id:'DA2', x:-190, y:65,  label:'Acidic Tempest',
+        desc:"When you cast a targeted acid spell of 1st level or higher (not AoE), the target’s armour corrodes, reducing AC by half your proficiency bonus for 1 round.", req:'DA1' },
+      { id:'DA3', x:-190, y:20,  label:'Lingering Corrosion',
+        desc:"When an enemy takes acid damage while already corroded, it has −2 on Constitution saving throws for 1 round.", req:'DA2' },
+      { id:'DA4', x:-190, y:-35, label:'Alkahest Expert',
+        desc:"1/LR, when you deal acid damage, force a CON save. On a failure, the creature gains vulnerability to acid for 1 minute.", req:'DA3' },
+
+      /* RING FINGER — LIGHTNING (taller) */
+      { id:'DL1', x:-95,  y:105, label:'Ionized Path',
+        desc:"Lightning spells and effects cast on others deal an additional 20% damage.", req:'D0' },
+      { id:'DL2', x:-95,  y:60,  label:'Stormpath',
+        desc:"1/SR, when you hit with a lightning spell, chain the damage to up to ⌊PB/2⌋ creatures within 10 ft of each other.", req:'DL1' },
+      { id:'DL3', x:-95,  y:15,  label:'Static Shock',
+        desc:"Lightning spells can linger: target makes CON save (DC 10 + spell level) or becomes disarmed. You also gain lightning resistance.", req:'DL2' },
+      { id:'DL4', x:-95,  y:-40, label:'Overload',
+        desc:"1/round, when you deal lightning damage, the target becomes charged for 1 round. If it then takes thunder or lightning again, it must pass a CON save or be stunned until the start of its next turn.", req:'DL3' },
+      { id:'DL5', x:-95,  y:-95, label:'Living Conduit',
+        desc:"1/LR when you cast a lightning spell, gain conduit charge until end of your next turn: +20 ft speed; you can move through enemies without OAs; the first melee attack against you is redirected on a failed DEX save for 2d10 lightning.", req:'DL4' },
+
+      /* MIDDLE FINGER — FIRE (tallest, center) */
+      { id:'DF1', x:0,    y:100, label:'Combustion',
+        desc:"Fire spells and effects cast on others deal an additional 20% damage.", req:'D0' },
+      { id:'DF2', x:0,    y:55,  label:'Ignition',
+        desc:"Creatures hit by your fire spells have a 30% chance to ignite. While ignited, they must spend an action to douse or take 1d6 fire at the start of their next turn.", req:'DF1' },
+      { id:'DF3', x:0,    y:10,  label:'Scarring Burns',
+        desc:"Fire spells can linger: target makes CON save (DC 10 + spell level) or loses fire resistance for 1 round. You also gain fire resistance.", req:'DF2' },
+      { id:'DF4', x:0,    y:-45, label:'Scorched Earth',
+        desc:"When you cast a fire AoE, the ground in the area ignites for 1 round. Creatures that enter or start in the area take 1d6 fire and have disadvantage on attack rolls and saving throws while in the flames.", req:'DF3' },
+      { id:'DF5', x:0,    y:-120,label:'Infernal Nova',
+        desc:"1/LR, when you cast a fire spell of 3rd level or higher, trigger a nova centered on you: creatures within 10 ft make a DEX save or take 2d8 fire and ignite (1d6) for 1 turn.", req:'DF4' },
+
+      /* INDEX FINGER — FROST (second tallest, right of center) */
+      { id:'DC1', x:95,   y:105, label:'Merciless Cold',
+        desc:"Cold spells and effects cast on others deal an additional 20% damage.", req:'D0' },
+      { id:'DC2', x:95,   y:60,  label:"Winter's Grasp",
+        desc:"Casting a cold spell has a 60% chance to slow the target: −10 ft speed until your next turn. Dropping a target to 0 HP with cold freezes it into brittle ice (difficult terrain).", req:'DC1' },
+      { id:'DC3', x:95,   y:15,  label:'Frostfall',
+        desc:"Cold spells can linger: target makes CON save (DC 10 + spell level) or its next attack deals −20% damage. You also gain cold resistance.", req:'DC2' },
+      { id:'DC4', x:95,   y:-40, label:'Frozen Veins',
+        desc:"If a creature fails its save vs your cold spell by 5+, it becomes restrained for 1 round. If reduced to 0 HP by cold, it shatters, dealing 1d8 piercing to creatures within 5 ft.", req:'DC3' },
+      { id:'DC5', x:95,   y:-95, label:'Absolute Zero',
+        desc:"1/LR when you cast a cold spell, freeze a 10-ft radius around you: creatures must pass a CON save or be paralyzed for 1 round. Frozen ground becomes difficult terrain for 1 minute.", req:'DC4' },
+
+      /* THUMB — THUNDER (short, far right with outward “thumb” feel) */
+      { id:'DT1', x:185,  y:120, label:'Booming Air',
+        desc:"Thunder spells and effects cast on others deal an additional 20% damage.", req:'D0' },
+      { id:'DT2', x:185,  y:75,  label:'Echoing Boom',
+        desc:"Creatures in your thunder spell’s radius must make an additional save or become deafened until the end of their next turn.", req:'DT1' },
+      { id:'DT3', x:200,  y:25,  label:'Booming Command',
+        desc:"When you cast a thunder spell, creatures within 5 ft of you must succeed on a STR save or be pushed 5 ft.", req:'DT2' },
+      { id:'DT4', x:210,  y:-25, label:'Worldsplitter',
+        desc:"1/LR unleash a thunderclap (30-ft radius centered on you). Creatures must make a STR save or take 4d10 thunder, be deafened 1 minute, pushed 10 ft, and knocked prone (half on success, no prone).", req:'DT3' }
+    ]
+  };
+
+  if (typeof drawTree==='function' && window.current==='Mage' && (window.subIndex?.Mage||0)===3) drawTree();
+</script>
