@@ -945,45 +945,72 @@ window.addEventListener('load', () => {
     if (typeof drawTree==='function' && window.current==='Expert' && (window.subIndex?.Expert||0)===1) drawTree();
   </script>
 
-  <!-- ===== Priest 1: Restoration ===== -->
+<!-- ===== Priest 0: Restoration (Spirit Healer) - Goblet Shape ===== -->
   <script>
     TITLES.Priest[0] = "Restoration";
     TREES.Priest[0] = {
       nodes: [
-        { id:'PR0', x:0,  y:180, label:'Restoration Mastery',
-          desc:"Healing spells cure +2 HP. 1/short rest a healing spell affects 2 creatures; they share the same result." },
+        // BASE/FOOT - Wide foundation at bottom
+        { id:'PB1', x:-100, y:180, label:'Group Heal',
+          desc:"The warmth of your magic spreads to nearby allies. Once per short rest when you cast a healing spell targeting one creature, you may choose up to two additional allies within ten feet to receive the same healing." },
+        
+        { id:'PR0', x:0, y:180, label:'Spirit Healer',
+          desc:"You have learned to channel healing energies from the Fade. Your healing spells restore an additional two hit points. You learn one healing cantrip if you do not already know one." },
+        
+        { id:'PB2', x:100, y:180, label:'Potent Healing',
+          desc:"You draw upon deeper wells of healing power. When you roll dice to restore hit points with a spell, treat any die showing a one or two as a three instead." },
 
-        // Healing (left wall)
-        { id:'PH1', x:-20,  y:140, label:'Edgewalker',
-          desc:"If target <30% HP, heal max; a creature can’t benefit again until after a short rest.", req:'PR0' },
-        { id:'PH2', x:-70,  y:120, label:'Hallowed Skills',
-          desc:"Restoration spells/effects are 20% more effective.", req:'PH1' },
-        { id:'PH3', x:-110, y:90,  label:'Respite',
-          desc:"1/short rest Healing Word: heals half; restores other half as spell points. A creature benefits once/long rest.", req:'PH2' },
-        { id:'PH4', x:-140, y:50,  label:'Overflowing Cup',
-          desc:"Excess healing → temp HP OR store and burst to heal within 5 ft (pool clears on short rest).", req:'PH3' },
-        { id:'PH5', x:-150, y:0,   label:'Blessed Be',
-          desc:"When you heal a creature, it also gains Bless and Blade Ward for 1 round.", req:'PH4' },
-        { id:'PH6', x:-130, y:-60, label:'Sacred Life',
-          desc:"Creatures under Bless/shields are healed +30% (rounded up).", req:'PH5' },
-        { id:'PH7', x:-190, y:-60, label:'Wheel of Life',
-          desc:"1/long rest in combat: 30-ft aura pulses 1d4 rounds at round start — heal 2d4 (or deal 2d4 to death/undead).", req:'PH5' },
+        // LOWER STEM - Narrowing
+        { id:'PS1', x:-40, y:130, label:'Lifeward',
+          desc:"Your healing energy lingers protectively around those you restore. When you heal an ally to their maximum hit points, they gain temporary hit points equal to your Wisdom modifier plus your proficiency bonus.", reqs:['PB1','PR0'] },
+        
+        { id:'PS2', x:40, y:130, label:'Cleansing Light',
+          desc:"Your healing magic purifies as it restores. Whenever you heal a creature suffering from the poisoned, diseased, or blinded condition, you can choose to end one of these conditions in addition to restoring hit points.", reqs:['PR0','PB2'] },
 
-        // Smite/ward (right wall)
-        { id:'PD1', x:20,   y:140, label:'Descending Light',
-          desc:"Once/day when entering combat, regain spent spell points = ⌊level/2⌋.", req:'PR0' },
-        { id:'PD2', x:70,   y:120, label:'Vigilant',
-          desc:"The first ward you cast in combat costs no spell points.", req:'PD1' },
-        { id:'PD3', x:110,  y:90,  label:'Radiant Light',
-          desc:"Learn Word of Radiance or Sacred Flame. 1/long rest: 30% chance to banish on cast.", req:'PD2' },
-        { id:'PD4', x:140,  y:50,  label:"Evil's Fear",
-          desc:"1/encounter: Prot. from Evil & Good as bonus; also Turn Undead at target’s location (10 ft).", req:'PD3' },
-        { id:'PD5', x:150,  y:0,   label:"Warrior's Flame",
-          desc:"1/short rest: random target in 60 ft — allies +3 SP, heal 1d4, Bless 1 turn; enemies 1d6 radiant, Bane 1 turn.", req:'PD4' },
-        { id:'PD6', x:130,  y:-60, label:'Battle Cleric',
-          desc:"+1 AC to blessed allies / −1 AC to cursed enemies from Warrior’s Flame.", req:'PD5' },
-        { id:'PD7', x:190,  y:-60, label:'Eternal Flame',
-          desc:"Warrior’s Flame produces two flames lasting twice as long.", req:'PD5' },
+        // MID STEM - Narrowest point
+        { id:'PS3', x:-20, y:80, label:'Revival',
+          desc:"The spirits answer your desperate pleas. Once per long rest you can cast Revivify without expending a spell slot or requiring material components. The spell must be cast within one minute of the creature's death rather than the usual time limit.", req:'PS1' },
+        
+        { id:'PS4', x:20, y:80, label:'Death Ward',
+          desc:"You weave protective magic around your most vulnerable allies. During a long rest you can place a death ward on up to three creatures. When a warded creature would drop to zero hit points, they instead drop to one hit point and the ward ends. Wards last for eight hours.", req:'PS2' },
+
+        // UPPER STEM - Beginning to widen
+        { id:'PS5', x:0, y:30, label:'Spirit Shield',
+          desc:"Spirits of the Fade manifest to protect those you heal. Whenever you restore hit points to a creature, they gain a spectral shield granting plus two to armor class until the start of your next turn. This shield is visible as shimmering spirit energy.", reqs:['PS3','PS4'] },
+
+        // BOWL BEGINS - Widening outward
+        { id:'PW1', x:-60, y:-20, label:'Healing Aura',
+          desc:"You can manifest a gentle aura of restoration. Once per long rest, create a fifteen foot radius aura centered on yourself for one minute. Allies who start their turn within the aura regain hit points equal to one d six plus your Wisdom modifier.", req:'PS5' },
+        
+        { id:'PW2', x:0, y:-15, label:'Life from Death',
+          desc:"You have touched the boundary between life and death. When an ally within thirty feet drops to zero hit points, you can use your reaction to immediately cast a healing spell on them without expending a spell slot. You can use this ability once per long rest.", req:'PS5' },
+        
+        { id:'PW3', x:60, y:-20, label:'Empowered Recovery',
+          desc:"Creatures blessed by your magic recover with supernatural vigor. Allies you heal gain advantage on their next Constitution saving throw before the end of their next turn.", req:'PS5' },
+
+        // MID BOWL - Continuing to widen
+        { id:'PW4', x:-90, y:-60, label:'Mass Restoration',
+          desc:"Your connection to healing spirits deepens. Your Group Heal ability now affects up to four creatures instead of two. Additionally, whenever you cast a healing spell it purges one disease or poison effect from the target.", req:'PW1' },
+        
+        { id:'PW5', x:0, y:-55, label:'Restore the Dead',
+          desc:"Your mastery over life and death grows. You can cast Revivify once per long rest without expending a spell slot. Additionally, creatures you bring back from 0 hit points, through a healing spell, return with 1-third their maximum hit points instead of rolling dice.", req:'PW2' },
+        
+        { id:'PW6', x:90, y:-60, label:'Restoration Mastery',
+          desc:"You have perfected the art of healing magic. Your healing spells restore an additional amount of hit points equal to your proficiency bonus. This bonus applies to each target healed by the spell.", req:'PW3' },
+
+        // UPPER BOWL - Widest point
+        { id:'PW7', x:-110, y:-100, label:'Beacon of Life',
+          desc:"You become a shining beacon of vitality on the battlefield. Once per long rest you can designate a point within sixty feet as a beacon for one minute. All allies within twenty feet of the beacon regain hit points equal to your Wisdom modifier at the start of each of their turns.", req:'PW4' },
+        
+        { id:'PW8', x:0, y:-95, label:'Spirit Communion',
+          desc:"You maintain a constant connection to healing spirits.  Once per short rest you can ask a healing spirit for guidance, gaining advantage on your next Wisdom based ability check or saving throw.", req:'PW5' },
+        
+        { id:'PW9', x:110, y:-100, label:'Martyr',
+          desc:"You can channel your own life force to save others. When you cast a healing spell, you can choose to take damage equal to half the amount healed to double the healing received by the target. You can use this ability a number of times per long rest equal to your Wisdom modifier.", req:'PW6' },
+
+        // RIM - Top of goblet
+        { id:'PR_MASTER', x:0, y:-150, label:'Master Spirit Healer',
+          desc:"You have become one with the healing spirits of the Fade. Once per long rest you can enter a transcendent state for one minute. During this time all healing you perform is maximized, allies within thirty feet of you have advantage on death saving throws, and you can use your reaction to prevent an ally within sixty feet from dying by stabilizing them automatically. The spirits visibly swirl around you during this state.", reqs:['PW7','PW8','PW9'] }
       ]
     };
     if (typeof drawTree==='function' && window.current==='Priest' && (window.subIndex?.Priest||0)===0) drawTree();
@@ -1529,6 +1556,81 @@ window.addEventListener('load', () => {
 </script>
 
 
+
+
+<!-- ===== Priest 2: Demonology & Occult - Pentagram Shape ===== -->
+  <script>
+    TITLES.Priest[2] = "Demonology & Occult";
+    TREES.Priest[2] = {
+      nodes: [
+        // CENTER - Pentagram core
+        { id:'PO0', x:0, y:0, label:'Forbidden Knowledge',
+          desc:"You have begun studying the dark arts and forbidden lore. You gain proficiency in Arcana if you lack it. You learn to read and speak Infernal and Abyssal. You have advantage on Intelligence checks related to demons, devils, and occult phenomena." },
+
+        // POINT 1 - BOTTOM (Exorcism Fundamentals - pointing down)
+        { id:'PE1', x:0, y:70, label:'Sense the Unholy',
+          desc:"Your studies allow you to detect demonic presence and corruption. You can sense fiends, undead, and possessed creatures within thirty feet. You can also detect areas that have been desecrated or cursed. This sense manifests as a feeling of unease or cold dread.", req:'PO0' },
+        
+        { id:'PE2', x:0, y:130, label:'Lesser Exorcism',
+          desc:"You have learned basic exorcism techniques. You can perform a ten minute ritual to attempt to expel a minor possessing spirit from a creature or small location. The entity must make a Charisma saving throw against your spell save DC or be forced out. This works on possessions caused by effects of first or second level. Once per long rest.", req:'PE1' },
+        
+        { id:'PE3', x:0, y:190, label:'Purge the Demon',
+          desc:"Your exorcisms have become more effective through practice and study. Your Lesser Exorcism now works on effects of up to fourth level. Additionally, when you successfully exorcise an entity, it takes radiant damage equal to twice your level and cannot attempt to possess the same target for seven days.", req:'PE2' },
+
+        // POINT 2 - LOWER LEFT (Demonology Study)
+        { id:'PD1', x:-67, y:49, label:'Demonic Lexicon',
+          desc:"You have studied the classifications and hierarchies of demons. You can identify a demon's type and general rank by observing it for one minute. You know what types of offerings different demon ranks typically demand. You gain advantage on Intelligence checks to recall lore about specific demons.", req:'PO0' },
+        
+        { id:'PD2', x:-123, y:90, label:'Binding Circles',
+          desc:"You can create circles that trap and contain demons. You can spend one hour drawing a binding circle using salt, silver dust, and blessed water worth twenty five gold pieces. Demons of challenge rating one or lower cannot cross this circle. Trapped demons must answer one question per hour but may lie or mislead.", req:'PD1' },
+        
+        { id:'PD3', x:-180, y:131, label:'Infernal Contracts',
+          desc:"You understand the dangerous art of bargaining with demons. When negotiating with a demon, you have advantage on Insight checks to detect deception and Persuasion checks to negotiate terms. You know the standard prices demons demand for services and can identify when they're attempting to twist contract terms against you.", req:'PD2' },
+
+        // POINT 3 - UPPER LEFT (Summoning - Dangerous Magic)
+        { id:'PS1', x:-67, y:-49, label:'Summon Familiar Spirit',
+          desc:"You have learned the first steps of summoning magic. You can cast Find Familiar as a ritual, but the familiar takes the form of an imp or quasit. It retains its demonic nature and alignment but is bound to serve you. It may attempt to corrupt you through subtle suggestions. Once per long rest.", req:'PO0' },
+        
+        { id:'PS2', x:-123, y:-90, label:'Conjure Lesser Demon',
+          desc:"You can now summon more powerful demonic entities though it is extremely dangerous. Once per long rest you can perform a thirty minute ritual to summon a demon of challenge rating one or lower. You must maintain concentration and succeed on contested Charisma checks each round to maintain control. On failure, the demon becomes hostile.", req:'PS1' },
+        
+        { id:'PS3', x:-180, y:-131, label:'Greater Summoning',
+          desc:"Your summoning rituals have grown more sophisticated and you have learned better binding techniques. You can now summon demons of up to challenge rating three. Additionally, if you summon a demon within a binding circle, you automatically maintain control without concentration for the circle's duration. The demon still seeks to twist your commands.", req:'PS2' },
+
+        // POINT 4 - UPPER RIGHT (Protection & Warding)
+        { id:'PW1', x:67, y:-49, label:'Protective Wards',
+          desc:"You can create simple wards that repel weak demonic entities. You can spend ten minutes inscribing protective symbols on a doorway or threshold. Fiends of challenge rating one quarter or lower cannot cross this ward. The ward lasts for eight hours. You can maintain a number of wards equal to your proficiency bonus.", req:'PO0' },
+        
+        { id:'PW2', x:123, y:-90, label:'Strengthen Wards',
+          desc:"Your wards have become more powerful through study and practice. Your protective wards now repel fiends of up to challenge rating two and last for twenty four hours. Additionally, when a fiend attempts to cross your ward and fails, you are mentally alerted to the attempt even if you are not present.", req:'PW1' },
+        
+        { id:'PW3', x:180, y:-131, label:'Sanctify the Corrupted',
+          desc:"You can cleanse locations tainted by demonic presence. You can perform a one hour ritual using holy water and incense worth one hundred gold pieces to purify a thirty foot radius area. This removes desecration, breaks minor curses, and prevents the area from being used as a demonic anchor point for one month.", req:'PW2' },
+
+        // POINT 5 - LOWER RIGHT (Advanced Exorcism & Banishment)
+        { id:'PX1', x:67, y:49, label:'Recognize Possession',
+          desc:"You can identify the signs of demonic possession and influence. By observing a creature for one minute you can determine if it is possessed or under demonic influence. You learn the approximate strength of the possessing entity. You gain advantage on saving throws against being possessed or controlled by fiends.", req:'PO0' },
+        
+        { id:'PX2', x:123, y:90, label:'Banish Demon',
+          desc:"You know sacred words and ritual gestures that force demons back to their realm. You learn the Banishment spell. Once per long rest you can cast it without expending a spell slot. When targeting fiends, they have disadvantage on the saving throw. Successfully banished demons cannot return to this plane for twenty four hours.", req:'PX1' },
+        
+        { id:'PX3', x:180, y:131, label:'Master Exorcist',
+          desc:"You have become expert at expelling even powerful demonic entities. Your exorcisms now work on possessions of any level. As an action you can attempt an emergency exorcism on any possessed creature within thirty feet. The demon makes a Charisma saving throw with disadvantage. On failure it is expelled and banished for one week. On success it takes radiant damage equal to five times your level. Once per long rest.", req:'PX2' },
+
+        // MASTER - Outer circle connecting all points
+        { id:'PO_MASTER', x:0, y:-220, label:'Demonologist',
+          desc:"You are recognized as a master of demonic lore and practice. You gain immunity to being possessed or controlled by fiends. Your binding circles can now contain demons of up to challenge rating seven. Once per week you can perform a two hour ritual to bind a demon of challenge rating five or lower into service for one specific task. The demon must obey but will seek loopholes. You know of libraries and dark places where the true names of powerful demons might be found, though learning them requires dangerous quests.", reqs:['PE3','PD3','PS3','PW3','PX3'] }
+      ]
+    };
+    if (typeof drawTree==='function' && window.current==='Priest' && (window.subIndex?.Priest||0)===2) drawTree();
+  </script>
+
+
+
+
+
+
+
 <!-- ===== Priest Secret 9: Templar - Downward Sword (+ Lock Gate) ===== -->
 <script>
 (function(){
@@ -1690,36 +1792,85 @@ const frost = document.createElement('video');
 })();
 </script>
 
-  <script>
+<script>
     TITLES.Priest[1] = "Rituals & Faith";
     TREES.Priest[1] = {
       nodes: [
-        { id:'PF0', x:0, y:20,  label:'Sacred Rites',
-          desc:"Gain a Ritual Focus. During a long rest you may perform Ceremony." },
+        // CENTER - Sun core
+        { id:'PF0', x:0, y:0, label:'Sacred Rites',
+          desc:"You have been trained in the sacred rituals of your faith. You gain proficiency in Religion if you lack it. During a long rest you can perform the Ceremony ritual, blessing allies or consecrating locations according to your divine traditions." },
 
-        // Left arc (Consecration)
-        { id:'PF1', x:-130, y:75,  label:'Sanctify the Ground',
-          desc:"10-min ritual: consecrate 10-ft radius for 1h. Allies +1 vs fear/charm; undead/fiends take 1d4 radiant on entry.", req:'PF0' },
-        { id:'PF2', x:-150, y:0,   label:'Blessed Vessel',
-          desc:"After consecration, imbue a creature 8h: resist necrotic; +1 radiant on hit. One Vessel at a time.", req:'PF1' },
-        { id:'PF3', x:-130, y:-75, label:'Circle of Benediction',
-          desc:"1/LR bless an object with +1 save vs magical attacks & resist necrotic; 5-ft aura.", req:'PF2' },
-        { id:'PF4', x:-75,  y:-130,label:'Divine Anchor',
-          desc:"Consecration becomes warded ground (Magic Circle-like); advantage on death saves; seal Fade breaks (Religion).", req:'PF3' },
+        // RAY 1 - 12 O'CLOCK (Consecration - straight up)
+        { id:'PF1', x:0, y:-60, label:'Sanctify Ground',
+          desc:"You can make a place holy through ritual prayer. You can spend ten minutes performing a consecration ritual to bless a ten foot radius area for one hour. Allies within consecrated ground gain a plus one bonus to saving throws against being frightened or charmed. Undead and fiends take one d four radiant damage when they enter the area.", req:'PF0' },
+        
+        { id:'PF2', x:0, y:-120, label:'Blessed Sanctuary',
+          desc:"Your consecrated ground becomes a place of refuge and power. Consecrated areas you create now last for eight hours and the radius increases to twenty feet. Additionally, allies who take a short rest entirely within your consecrated ground regain an additional hit die worth of hit points.", req:'PF1' },
+        
+        { id:'PF3', x:0, y:-180, label:'Divine Anchor',
+          desc:"Your faith creates an unbreakable connection to the divine. Consecrated ground you create cannot be dispelled by effects lower than fifth level. Additionally, you can perform a one hour ritual to permanently consecrate a location. Permanently consecrated locations provide sanctuary and cannot host portals to other planes without your permission.", req:'PF2' },
 
-        // Right arc (Exorcism/Banishment)
-        { id:'PG1', x:130,  y:-75, label:'Exorcist',
-          desc:"Know Demonic & Angelic; adv. on checks for exorcisms/fiends/celestials; resist possession/charm.", req:'PF0' },
-        { id:'PG2', x:150,  y:0,   label:'Rite of Banishment',
-          desc:"Turn Undead 1/LR as bonus action; after banish ritual, impose disadv. on its next Wis save.", req:'PG1' },
-        { id:'PG3', x:130,  y:75,  label:'Purging Rite',
-          desc:"1/LR, 10-min exorcism to end a curse/charm/possession (≤ uncommon). Failed Wis save suppresses 1h.", req:'PG2' },
-        { id:'PG4', x:75,   y:130, label:'Evil Intervention',
-          desc:"After exorcism, mark vs repossession 24h; brand seal 1/LR prevents low-level possession.", req:'PG3' },
-        { id:'PG5', x:0,    y:150, label:'Summon the Flame',
-          desc:"1/LR, 1-min invocation: call divine fire on consecrated area — 6d6 radiant (DEX half).", req:'PG4' },
-        { id:'PG6', x:-75,  y:130, label:'Holy Orders',
-          desc:"Add prof. again to banishment/exorcism checks; shrine boons in holy places.", req:'PG5' },
+        // RAY 2 - 3 O'CLOCK (Blessings - straight right)
+        { id:'PB1', x:60, y:0, label:'Blessing',
+          desc:"Through prayer you can invoke divine favor upon your allies. You learn the Bless spell if you do not know it. You can cast Bless once per long rest without expending a spell slot and it does not require concentration when cast this way.", req:'PF0' },
+        
+        { id:'PB2', x:120, y:0, label:'Anointed',
+          desc:"You can perform anointing rituals to grant lasting protection. During a long rest you can anoint up to three creatures with holy oils. Anointed creatures gain resistance to necrotic damage and have advantage on saving throws against being possessed or controlled. The anointing lasts for eight hours.", req:'PB1' },
+        
+        { id:'PB3', x:180, y:0, label:'Mass Blessing',
+          desc:"Your blessings have grown in power and scope. You can now bless up to six creatures during your anointing ritual. Additionally, anointed creatures gain a plus one bonus to attack rolls and saving throws for the duration of the anointing.", req:'PB2' },
+
+        // RAY 3 - 6 O'CLOCK (Protection - straight down)
+        { id:'PP1', x:0, y:60, label:'Protection from Evil',
+          desc:"You have learned prayers that ward against malevolent forces. You can cast Protection from Evil and Good once per long rest without expending a spell slot. When you cast it this way you can target up to two creatures instead of one.", req:'PF0' },
+        
+        { id:'PP2', x:0, y:120, label:'Banish the Unholy',
+          desc:"Your prayers can force evil beings back to their own realms. You learn the Banishment spell. Once per long rest you can cast it without expending a spell slot, but it can only target undead, fiends, or aberrations. When cast this way creatures have disadvantage on the saving throw.", req:'PP1' },
+        
+        { id:'PP3', x:0, y:180, label:'Smite the Wicked',
+          desc:"Your righteous fury empowers your attacks against evil. Once per turn when you hit an undead, fiend, or aberration with a weapon attack or spell you deal an additional two d eight radiant damage. If the creature is currently on a plane other than its home plane, it takes an additional one d eight radiant damage.", req:'PP2' },
+
+        // RAY 4 - 9 O'CLOCK (Divine Intervention - straight left)
+        { id:'PD1', x:-60, y:0, label:'Divine Guidance',
+          desc:"Your prayers open channels to divine wisdom. Once per long rest you can spend ten minutes in prayer to cast Augury or Divination without expending a spell slot. The answers you receive come through visions, omens, or feelings of certainty from your deity.", req:'PF0' },
+        
+        { id:'PD2', x:-120, y:0, label:'Answered Prayer',
+          desc:"Your deity responds more readily to your calls for aid. When you cast a divination spell or use Divine Guidance, you can ask one additional question. Additionally, once per long rest when you or an ally within thirty feet makes a saving throw, you can use your reaction to add one d four to the result as divine favor intercedes.", req:'PD1' },
+        
+        { id:'PD3', x:-180, y:0, label:'Divine Intervention',
+          desc:"Your faith is so strong that the divine occasionally acts directly on your behalf. Once per long rest you can call upon your deity for aid as an action. Roll percentile dice. If you roll a number equal to or lower than your level, your deity intervenes with an effect appropriate to your deity's domain as determined by the dungeon master. After you reach twentieth level this ability recharges on a short rest.", req:'PD2' },
+
+        // RAY 5 - 1:30 O'CLOCK (Holy Ward - upper right diagonal)
+        { id:'PW1', x:52, y:-52, label:'Holy Ward',
+          desc:"Divine power shields your consecrated spaces from intrusion. Undead, fiends, and aberrations must succeed on a Charisma saving throw to enter your consecrated ground. On a failed save they cannot enter and their turn ends. They can retry the save at the start of each of their turns.", req:'PF0' },
+        
+        { id:'PW2', x:104, y:-104, label:'Warding Prayer',
+          desc:"Through constant devotion you maintain protective prayers around yourself and allies. You can maintain Protection from Evil and Good on yourself at all times without concentration or spell slots. Additionally, allies within ten feet of you have advantage on saving throws against possession and being frightened by undead, fiends, or aberrations.", req:'PW1' },
+
+        // RAY 6 - 4:30 O'CLOCK (Sacred Flame - lower right diagonal)
+        { id:'PS1', x:52, y:52, label:'Sacred Flame',
+          desc:"You can call upon divine fire to protect and purify. Once per short rest you can perform a one minute ritual to bless a weapon or ammunition. The blessed item deals an additional one d six radiant damage on its next hit and sheds bright light in a ten foot radius. The blessing lasts for ten minutes.", req:'PF0' },
+        
+        { id:'PS2', x:104, y:104, label:'Purifying Light',
+          desc:"Your divine magic burns away corruption and darkness. When you deal radiant damage to an undead, fiend, or aberration, you can force it to make a Wisdom saving throw. On a failed save the creature is frightened of you until the end of your next turn. You can use this ability a number of times per long rest equal to your Wisdom modifier.", req:'PS1' },
+
+        // RAY 7 - 7:30 O'CLOCK (Ceremonies - lower left diagonal)
+        { id:'PC1', x:-52, y:52, label:'Sacred Ceremonies',
+          desc:"Your mastery of ritual magic deepens. You can perform the Ceremony ritual in half the normal time. Additionally, you learn one additional ritual spell of your choice from any spell list. You can cast ritual spells you know without having them prepared.", req:'PF0' },
+        
+        { id:'PC2', x:-104, y:104, label:'Circle of Benediction',
+          desc:"You can weave complex protective rituals. Once per long rest you can spend one hour creating a magic circle of protection around a location. The circle has a radius of up to thirty feet and lasts for eight hours. Creatures of your choice cannot enter the circle and ranged attacks cannot cross its boundary.", req:'PC1' },
+
+        // RAY 8 - 10:30 O'CLOCK (Faith - upper left diagonal)
+        { id:'PH1', x:-52, y:-52, label:'Unwavering Faith',
+          desc:"Your absolute faith in your deity grants you supernatural resilience. You have advantage on saving throws against being frightened or charmed. Once per long rest when you fail a saving throw, you can choose to succeed instead as your faith shields you from harm.", req:'PF0' },
+        
+        { id:'PH2', x:-104, y:-104, label:'Miracles',
+          desc:"Your faith can work miracles in times of dire need. Once per week you can perform a ten minute prayer ritual to replicate the effects of any cleric spell of fifth level or lower without expending a spell slot. The effect manifests as divine intervention rather than normal magic.", req:'PH1' },
+
+        // MASTER - Outer ring connecting all rays
+        { id:'PF_MASTER', x:0, y:-230, label:'Champion of Faith',
+          desc:"You have become a living conduit of divine power and your faith is unshakeable. You can perform a one hour ritual once per week to consecrate a location as a permanent shrine. Within your shrines you can cast any ritual spell without material components. Additionally, once per long rest you can call upon divine power to create a thirty foot radius zone of pure faith for one minute. Within this zone allies have advantage on all saving throws, enemies have disadvantage on attack rolls, and undead and fiends take three d ten radiant damage at the start of their turn.", reqs:['PF3','PB3','PP3','PD3'] }
       ]
     };
     if (typeof drawTree==='function' && window.current==='Priest' && (window.subIndex?.Priest||0)===1) drawTree();
@@ -1775,39 +1926,78 @@ const frost = document.createElement('video');
     if (typeof drawTree==='function' && window.current==='Warrior' && (window.subIndex?.Warrior||0)===0) drawTree();
   </script>
 
-  <!-- ===== Warrior 2: Weapon Mastery (Sword) ===== -->
+<!-- ===== Warrior 2: Weapon Mastery (Sword Shape - Diagonal) ===== -->
   <script>
     TITLES.Warrior[1] = "Weapon Mastery";
     TREES.Warrior[1] = {
       nodes: [
-        { id:'WM0', x:0, y:190, label:'Martial Focus',
-          desc:"1/SR, when using a proficient melee weapon, you may reroll an attack." },
-        { id:'WM1', x:0, y:100, label:'Mastery of Weapons',
-          desc:"Gain proficiency in martial weapons if lacking. 1/encounter +1 to an attack roll with them.", req:'WM0' },
-        { id:'WM_LHILT', x:-120, y:60, label:"Dancer's Precision",
-          desc:"1/SR with light/finesse: roll attack at disadv. to impose disadv. on target’s next attack.", req:'WM1' },
-        { id:'WM_RHILT', x:120,  y:60, label:'Crushing Blows',
-          desc:"1/encounter with heavy: ignore B/P/S resistances; on max die, next attack vs same target has advantage.", req:'WM1' },
-        { id:'WM2', x:0, y:20,  label:'Momentum Strike',
-          desc:"1/encounter on hit move 5 ft (no OAs) and make a second attack vs different target (half damage).", req:'WM1' },
-        { id:'WM3', x:0, y:-90, label:'Weapon Control',
-          desc:"1/SR Riposte on miss; on hit choose Disarm/Trip/Menace (saves as listed).", req:'WM2' },
-        { id:'WM4', x:0, y:-170, label:"Master's Technique",
-          desc:"1/SR after a hit: pick Executionerâ€™s Rhythm / Blade Dance / Unstoppable Blow (effects as listed).", req:'WM3' },
+        // POMMEL - Separated from grip
+        { id:'WM0', x:220, y:180, label:'Martial Focus',
+          desc:"You have begun training in the way of the blade. Once per short rest when using a melee weapon you are proficient with, you can reroll a missed attack roll. You must use the new result." },
+
+        // GRIP - Narrow handle section (gap between pommel and crossguard)
+        { id:'WM1', x:180, y:140, label:'Weapon Training',
+          desc:"Through dedicated practice your skill with weapons improves. You gain proficiency with all martial melee weapons if you lack it. Additionally, once per combat you can add a plus one bonus to an attack roll with a melee weapon.", req:'WM0' },
         
-        // Additional Weapon Mastery Abilities  
-        { id:'WM5', x:-60, y:-220, label:'Precise Striking',
-          desc:"Choose to take disadvantage on your attack rolls to gain +1 to your attack.", req:'WM4' },
+        { id:'WM2', x:140, y:100, label:'Combat Reflexes',
+          desc:"Your training has honed your reaction time in battle. When you miss with a melee weapon attack, you can use your bonus action to make an additional attack with the same weapon against a different target within reach. You can use this ability once per short rest.", req:'WM1' },
+
+        // CROSSGUARD - Spreading wide perpendicular to blade
+        { id:'WM_L1', x:50, y:150, label:'Light Weapon Mastery',
+          desc:"You have specialized in fighting with lighter, faster weapons. When wielding a light or finesse weapon, you gain a plus one bonus to armor class and can add your proficiency bonus to your initiative rolls.", req:'WM2' },
         
-{ id:'WM4', x:0, y:-170, label:"Master's Technique",
-          desc:"1/SR after a hit: pick Executionerâ€™s Rhythm / Blade Dance / Unstoppable Blow (effects as listed).", req:'WM3' },
+        { id:'WM_C1', x:100, y:60, label:'Versatile Fighter',
+          desc:"You adapt your fighting style to any weapon. You can switch between offense and defense as a bonus action. While offensive, you gain a plus one to attack rolls. While defensive, you gain a plus one to armor class. This stance lasts until you switch or fall unconscious.", req:'WM2' },
         
-        // Additional Weapon Mastery Abilities  
-        { id:'WM5', x:-60, y:-220, label:'Precise Striking',
-          desc:"Choose to take disadvantage on your attack rolls to gain +1 to your attack.", req:'WM4' },
+        { id:'WM_R1', x:190, y:10, label:'Heavy Weapon Mastery',
+          desc:"You have learned to wield massive weapons with devastating effect. When wielding a heavy or two handed weapon, you can reroll damage dice that show a one or two. You must use the new result. Additionally, you ignore the penalty to attack rolls from the heavy property if you have sufficient strength.", req:'WM2' },
+
+        // LEFT BLADE EDGE - Finesse path (narrower blade)
+        { id:'WM_L2', x:40, y:80, label:'Riposte',
+          desc:"You can turn an enemy's attack into an opening. When a creature misses you with a melee attack, you can use your reaction to make a melee weapon attack against that creature. On a hit, you can choose to disarm them, forcing a Strength saving throw or they drop one held item.", req:'WM_L1' },
         
-        { id:'WM6', x:60, y:-220, label:'Taunt',
-          desc:"Make an Intimidation check against a creature's Wisdom, within 30ft of you. On a fail they move 10ft towards you.", req:'WM4' }
+        { id:'WM_L3', x:0, y:40, label:'Precise Strike',
+          desc:"Your strikes target vital points with surgical precision. Once per turn when you have advantage on an attack roll with a light or finesse weapon, you can forgo the advantage to deal an additional two d six damage on a hit. This damage increases to three d six at tenth level.", req:'WM_L2' },
+        
+        { id:'WM_L4', x:-40, y:0, label:'Dancing Blade',
+          desc:"You move like water in combat, flowing from target to target. When you reduce a creature to zero hit points with a light or finesse weapon, you can immediately move up to ten feet without provoking opportunity attacks and make one additional attack against a different creature within range as part of the same action.", req:'WM_L3' },
+        
+        { id:'WM_L5', x:-80, y:-40, label:'Whirling Strike',
+          desc:"Your blade becomes a blur of motion. Once per short rest as an action, you can make a melee weapon attack against any number of creatures within your reach, making a separate attack roll for each target. You must be wielding a light or finesse weapon to use this ability.", req:'WM_L4' },
+
+        // CENTER BLADE - Universal techniques (blade spine - narrower)
+        { id:'WM_C2', x:60, y:20, label:'Weapon Bond',
+          desc:"You have formed a deep connection with your weapons. Choose one melee weapon to bond with during a long rest. You cannot be disarmed of this weapon unless you are incapacitated. If it is more than five feet away, you can summon it to your hand as a bonus action.", req:'WM_C1' },
+        
+        { id:'WM_C3', x:20, y:-20, label:'Momentum Strike',
+          desc:"You can chain your attacks together with devastating momentum. Once per short rest when you hit a creature with a melee weapon attack, you can immediately move up to fifteen feet without provoking opportunity attacks and make a second attack against a different creature within range. The second attack deals half damage on a hit.", req:'WM_C2' },
+        
+        { id:'WM_C4', x:-20, y:-60, label:'Perfect Form',
+          desc:"Your technique has become flawless through endless practice. You gain a plus one bonus to attack rolls with melee weapons. Additionally, opportunity attacks against you have disadvantage when you are wielding a melee weapon.", req:'WM_C3' },
+        
+        { id:'WM_C5', x:-60, y:-100, label:'Perfect Timing',
+          desc:"Your sense of timing in battle has become supernatural. Once per long rest when you make a melee weapon attack, you can treat the roll as a natural twenty. You must declare this before rolling. If you use this on a critical hit, you deal maximum damage instead of rolling.", req:'WM_C4' },
+
+        // RIGHT BLADE EDGE - Power path (narrower blade)
+        { id:'WM_R2', x:150, y:-30, label:'Crushing Blow',
+          desc:"You deliver strikes that shatter defenses. Once per short rest when you hit with a heavy or two handed weapon, you can force the target to make a Constitution saving throw. On a failure, their armor class is reduced by two until the end of their next turn and they have disadvantage on their next attack roll.", req:'WM_R1' },
+        
+        { id:'WM_R3', x:110, y:-70, label:'Overwhelm',
+          desc:"Your powerful attacks leave enemies reeling and vulnerable. When you score a critical hit with a heavy or two handed weapon, the target must make a Strength saving throw. On a failure they are knocked prone and have their movement speed reduced by half until the end of their next turn.", req:'WM_R2' },
+        
+        { id:'WM_R4', x:70, y:-110, label:'Sunder',
+          desc:"Your strikes can shatter weapons and armor. Once per short rest when you hit with a heavy or two handed weapon, you can attempt to sunder the target's equipment. The target makes a Strength saving throw. On failure, one weapon or piece of armor has its bonus reduced by one until repaired.", req:'WM_R3' },
+        
+        { id:'WM_R5', x:30, y:-150, label:'Devastating Strike',
+          desc:"You can put all your strength into a single devastating blow. Once per long rest you can take disadvantage on a melee attack with a heavy weapon. If it hits, it automatically becomes a critical hit and deals an additional three d eight damage. If the target is below half health, this increases to five d eight.", req:'WM_R4' },
+
+        // BLADE TIP - Convergence
+        { id:'WM_TIP', x:-100, y:-140, label:"Master's Technique",
+          desc:"You have mastered the fundamental techniques of all weapon styles. You can use features from all three weapon mastery paths regardless of which weapon you are wielding. Additionally, your critical hit range increases by one for all melee weapons. When you score a critical hit, you regain the use of one expended short rest ability from this tree.", reqs:['WM_L5','WM_C5','WM_R5'] },
+
+        // SWORD POINT - Ultimate
+        { id:'WM_MASTER', x:-180, y:-220, label:'Legendary Weapon Master',
+          desc:"You are recognized as one of the greatest weapon masters alive. You gain a plus one bonus to attack and damage rolls with all melee weapons. Once per long rest you can enter a state of perfect focus for one minute. During this time you have advantage on all attack rolls, score critical hits on a roll of eighteen to twenty, and can use your reaction to parry one attack per round, reducing its damage to zero. Your bonded weapon becomes magical if it was not already.", req:'WM_TIP' }
       ]
     };
     if (typeof drawTree==='function' && window.current==='Warrior' && (window.subIndex?.Warrior||0)===1) drawTree();
@@ -1819,39 +2009,36 @@ const frost = document.createElement('video');
     TREES.Warrior[2] = {
       nodes: [
         { id:'AX0', x:0, y:185, label:'Powerful Swings',
-          desc:"Bonus action stance 1 min: +2 damage with 2H melee; −1 AC. End any time." },
+          desc:"Once per short rest spend a Bonus action to enter a stance 1 min. During this time you gain a +2 damage with 2H melee, while also losing a −1 AC. You may en this stance at any time." },
         { id:'AX1', x:0, y:115, label:'Strength',
-          desc:"While stance is active, no −1 AC and +1 to hit.", req:'AX0' },
+          desc:"While you are active in your stance, you no longer lose the −1 AC and instead gain +1 to hit.", req:'AX0' },
         { id:'AX2', x:0, y:70,  label:'Weapon Control',
-          desc:"1/SR Riposte on miss; on hit choose Disarm/Trip/Menace.", req:'AX1' },
+          desc:"Once per short rest when you're hit by a melee attack you can choose to Disarm or Trip an enemy knocking them prone for one round.", req:'AX1' },
         { id:'AX3', x:0, y:25,  label:'Onslaught',
-          desc:"1/LR straight-line rush, attacking up to 3 passed creatures; push on failed STR save.", req:'AX2' },
+          desc:"Once per long rest you may move up to your full movement and make an attack on up to 3 passed creatures.", req:'AX2' },
         { id:'AX4', x:-35,y:10,  label:'Mighty Blow',
-          desc:"1/SR attack +2 to hit; add 1 weapon die; CON save or speed −10 ft.", req:'AX2' },
+          desc:"Once per short rest, you may make an attack with a +2 to hit or add an additional weapon die. You must then make a CON save each round. On a fail your speed drops by −10 ft.", req:'AX2' },
         { id:'AX5', x:35, y:10,  label:'Sweep',
-          desc:"1/SR one roll vs all in reach; hits deal normal damage; STR save or prone.", req:'AX4' },
+          desc:"Once per short rest, you make attack all those in reach with one roll. Hitting a creature deals normal damage.", req:'AX4' },
         { id:'AXL1',x:-120,y:60,  label:'Pommel Strike',
-          desc:"1/SR bonus after hit: STR save or prone.", req:'AX2' },
+          desc:"Once per short, as part of your attack action you may induce a STR save or knock the enemy prone.", req:'AX2' },
         { id:'AXL2',x:-150,y:25,  label:'Indomitable',
-          desc:"1/LR 1-minute buff: can’t be knocked prone; advantage vs stun.", req:'AXL1' },
+          desc:"Once per long rest you may stand stead fast. During this 1-minute buff you can’t be knocked prone and you gain advantage vs being stunned.", req:'AXL1' },
         { id:'AXL3',x:-170,y:-15, label:'Stunning Blows',
-          desc:"Once/turn on hit: CON save or stunned until your next turn; uses/LR = STR mod (min 1).", req:'AXL2' },
+          desc:"Once per short rest when you hit a creature, you may choose to stun them on a DC17 Constitution save. Then roll a 1d6, on a 6 it is automatically recharged.", req:'AXL2' },
         { id:'AXL4',x:-140,y:-55, label:'Critical Strike',
-          desc:"1/LR declare critical on hit; if target ≤25% HP, +2d6 slashing.", req:'AXL3' },
+          desc:"Once per long rest, you may declare 'critical strike'. If the creature is bloodied you deal an additional +2d6 damage of your weapon type.", req:'AXL3' },
         { id:'AXR1',x:120, y:60,  label:'Sunder Arms',
-          desc:"1/SR on hit: CON save or −2 to attack rolls until your next turn.", req:'AX2' },
+          desc:"Once per short rest when you hit a creature, you can sunder it, imposing a -2 to its next attack roll.", req:'AX2' },
         { id:'AXR2',x:150, y:25,  label:'Shattering Blows',
-          desc:"+1d8 vs constructs/objects; advantage to break objects.", req:'AXR1' },
+          desc:"Your blows have become shattering agaisnt rigid objects. Against objects and constructs you deal an additional 1d4 damage of your weapon type.", req:'AXR1' },
         { id:'AXR3',x:170, y:-15, label:'Sunder Armor',
-          desc:"1/SR on hit: CON save or −2 AC until end of next turn.", req:'AXR2' },
+          desc:"Once per short rest when you hit a creature, you can sunder it, imposing a -2 to its Ac for the next round..", req:'AXR2' },
         { id:'AXR4',x:140, y:-55, label:'Destroyer',
           desc:"On hit, target takes +2 damage from your weapon attacks until your next turn.", req:'AXR3' },
         { id:'AXT1',x:-60, y:-85, label:'Sweeping Strike',
-          desc:"1/LR 10-ft cone: primary hit crits; others take normal; all hit STR save or prone.", req:'AX5' },
-        { id:'AXT2',x:60,  y:-85, label:'Impact',
-          desc:"Toggle: each 2H hit deals +1 thunder splash to others within 5 ft (once per hit).", req:'AXT1' },
-        { id:'AXT3',x:0,   y:-110,label:'Reaving Storm',
-          desc:"1/LR, up to 1 min: first time each turn you hit, immediately make a second attack vs a different creature.", req:'AXT2' },
+          desc:"Once per long rest in a 10-ft cone: primary hit take normal damage, all hit must make a vs STR save or become prone.", req:'AX5' },
+  
       ]
     };
     if (typeof drawTree==='function' && window.current==='Warrior' && (window.subIndex?.Warrior||0)===2) drawTree();
@@ -1865,17 +2052,17 @@ const frost = document.createElement('video');
         { id:'AR0', x:-120, y:-50, label:'Archery Mastery',
           desc:'Bows and Crossbows deal 20% more damage.' },
         { id:'AR1', x:-100,  y:-120, label:'Long Shot',
-          desc:'1/SR attempt a Long Shot: no disadvantage at max range.', req:'AR0' },
+          desc:'Once per short rest you may attempt a Long Shot. You no longer have disadvantage at max range.', req:'AR0' },
         { id:'AR2', x:-40,  y:-200, label:'Thread the Needle',
-          desc:'1/encounter ignore −2 AC vs targets that haven’t moved this round (declare at round start).', req:'AR1' },
+          desc:'Once per encounter you may ignore −2 AC vs targets that haven’t moved this round.', req:'AR1' },
         { id:'AR3', x:-80,  y:0, label:'Quick Shot',
-          desc:'1/SR bonus-action extra attack.', req:'AR2' },
+          desc:'Once per short rest you may use a bonus-action to make an extra attack.', req:'AR2' },
         { id:'AR4', x:0, y:0, label:'Clean Kill',
-          desc:'1/LR Precise: crit on 18–20 and +10% damage.', req:'AR3' },
+          desc:'Once per long rest you may declare that an natural 18, 19 or 20 is a crit and +10% damage.', req:'AR3' },
         { id:'AR5', x:60, y:0, label:'Snipe',
-          desc:'1/LR: if you crit a target you hit last round, crit deals ×3; reroll any damage dice (keep 2nd).', req:'AR4' },
+          desc:'Once per long rest if you crit a target you hit last round, crit deals ×3 damage. Reroll any damage dice (keep 2nd).', req:'AR4' },
         { id:'AR6', x:150, y:0, label:'Hawkeye',
-          desc:'1/day slow time for 1 round; your next hit on that enemy is an automatic crit.', req:'AR5' },
+          desc:'Once per long rest you may "slow time" for 1 round; your next hit on that enemy is an automatic crit, but you have disadvantage on your next attack roll', req:'AR5' },
         { id:'AR7', x:250, y:0, label:'Three Crows',
           desc:'If you hit the same target beyond 25 ft three times in a row: bonus 20% damage instance and knock prone.', req:'AR6' },
 
@@ -1893,7 +2080,7 @@ const frost = document.createElement('video');
           desc:"You no longer receive disadvantage when using a bow in melee range.", req:'AR0' },
         
         { id:'AR9', x:-200, y:-100, label:'Aim',
-          desc:"You choose to reduce your attacks to once per round, reduce movement to 0 and gain advantage on your attack roll as well as crit on an 18-20.", req:'AR8' },
+          desc:"You choose to reduce your attacks to once per round, reduce movement to 0 and gain advantage on your attack roll.", req:'AR8' },
         
         { id:'AR10', x:300, y:50, label:'Defensive Fire',
           desc:"You activate this at the start of your turn as a bonus action. Granting those within 10ft of the creature you attack +1 to their AC for the round.", req:'AR7' },
